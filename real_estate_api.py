@@ -1,21 +1,25 @@
 # This is going to be where I keep all the API endpoints.
-from beartype import beartype
-import requests
 from retrying import retry
 from ediblepickle import checkpoint
-from urllib.parse import quote
-import html
-from typing import Literal
+from beartype import beartype
 from beartype.typing import Tuple
+from typing import Literal, List
 from datetime import datetime
+from urllib.parse import quote
 
-import keys
-keys = keys.getKeys()
+import requests
+import html
+import string
+
+from sklearn.base import TransformerMixin, BaseEstimator
+from math import radians, cos, sin, asin, sqrt
+
+import keys as k
 
 RESULTS_PER_REQUEST_LIMIT = 42
 
 USREALESTATE_API_HEADERS = {
-    "X-RapidAPI-Key": keys['USRealEstate'],
+    "X-RapidAPI-Key": k.getKeys()['USRealEstate'],
     "X-RapidAPI-Host": "us-real-estate.p.rapidapi.com"
 }
 
@@ -62,18 +66,17 @@ def get_PropertyDetail(
 
 @beartype
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='Saved Results/PropertyValue/')
-def get_PropertyValue(propoerty_id : str) -> dict:
+@checkpoint(key=lambda args, kwargs: quote(kwargs['property_id']) + '.pkl', work_dir='Saved Results/PropertyValue/')
+def get_PropertyValue(property_id : str) -> dict:
     url = "https://us-real-estate.p.rapidapi.com/for-sale/home-estimate-value"
 
     querystring = {
-        "property_id":propoerty_id
+        "property_id":property_id
     }
 
     response = requests.request("GET", url, headers=USREALESTATE_API_HEADERS, params=querystring)
     return response.json()
 
-@beartype
 def get_Properties(
         market_status : Literal['for_sale','sold'],
         city_state    : Tuple[str, str] = None,
@@ -81,7 +84,7 @@ def get_Properties(
         n_results     : int = None,
         property_type : str = 'single_family',
         offset        : int = 0,
-        verbose       : Literal[0,1] = 0
+        verbose       : bool = False
     ) -> dict:
     
     '''
@@ -143,7 +146,15 @@ def get_Properties(
             "zipcode":zip_code,
         })
 
-    geo_to_return, houses_to_return = query_url(n_results, verbose, querystring, url)
+    geo_to_return, houses_to_return = query_url(
+        n_results, 
+        verbose, 
+        querystring, 
+        url, 
+        zzzzipcode = querystring.get('zipcode', '00000'),
+        zzzcity = querystring.get('city', 'XXXXX'),
+        zzzsort = querystring.get('sort')
+    )
 
     return {
         'houses' : houses_to_return,
@@ -152,12 +163,17 @@ def get_Properties(
 
 @beartype
 @retry(stop_max_attempt_number=5)
+@checkpoint(key=string.Template('${zzzzipcode}_${zzzcity}_${zzzsort}.pkl'), \
+    work_dir='Saved Results/Properties/')
 def query_url(
-    n_results : int, 
-    verbose : bool, 
-    querystring : dict, 
-    url : str
-    ) -> Tuple[dict, dict]:
+        n_results : int, 
+        verbose : bool, 
+        querystring : dict, 
+        url : str,
+        zzzzipcode : str,
+        zzzcity : str,
+        zzzsort : str
+    ) -> Tuple[dict, List[dict]]:
     '''
     Honestly, this was just made the make the get_Properties function just a little less busy.
     When looking at pulling houses at the API level, we need a url, query string, the number of results, and a 
@@ -166,6 +182,7 @@ def query_url(
     '''
 
     v2 : bool = 'v2' in url
+
     response = requests.request("GET", url, headers=USREALESTATE_API_HEADERS, params=querystring).json()
     total_houses_available = response['data']['home_search']['total'] if v2 else response['data']['total']
     total_houses_in_request = response['data']['home_search']['count'] if v2 else response['data']['count'] 
@@ -199,9 +216,10 @@ def query_url(
 
     return geo_to_return, houses_to_return
 
+@beartype
 def get_UserHome(
         user_input : str
-    ) -> str:
+    ) -> dict:
 
     location_suggest = get_LocationSuggest(user_input, return_all=True)
     locations = location_suggest.get('data')
@@ -231,13 +249,11 @@ def get_UserHome(
     
     return filtered_locations[0]
 
-@beartype
-@checkpoint(key=lambda args, kwargs: quote(args[0]['full_address'][0]) + '.pkl', work_dir='Saved Results/Properties/')
 def get_HousesOfInterest(
     address              : dict, 
     n                    : int = 84, 
     listed_to_sold_ratio : float = 0.3,
-    verbose              : Literal[0,1] = 0
+    verbose              : bool = False
 ) -> dict:
     '''
     This function is going to take an address and retrun a dictionary of geo / results. This is going to be a gloified 
@@ -299,7 +315,7 @@ def get_HousesOfInterest(
             offset=new_n_results
         )
         
-        listed_homes['houses'].extend(listed_homes_v2['houes'])
+        listed_homes['houses'].extend(listed_homes_v2['houses'])
 
     # Geo will be the same for both unless one returns a zip_code not in the other, but if that happens 
     # it will be a small population.
@@ -382,10 +398,15 @@ class house():
             'photos' : 'to be added'
         }
 
+        self.raw_listing : dict = listing
         self.raw_last_update : str = listing['last_update_date']
         self.raw_list_date : str = listing['list_date']
         self.tags : list = listing.get('tags', [])
-        self.list_price : Tuple[int, float] = listing.get('list_price', 0)
+        self.price : Tuple[int, float] = max(
+            (listing.get('list_price') or 0),
+            (listing.get('sold_price') or 0),
+            (listing.get('description', {}).get('list_price') or 0),
+            (listing.get('description', {}).get('sold_price') or 0))
         self.new_construction : bool = listing.get('flags', {}).get('is_new_construction', False) or False
         self.status : Literal['sold', 'for_sale', 'NO_STATUS'] = listing.get('status', 'NO_STATUS')
 
@@ -421,11 +442,11 @@ class house():
             'google_map_street_view' : self.raw_location.get('street_view_url'),
             'fips_code' : self.raw_location.get('county', {}).get('fips_code'),
             'county' : self.raw_location.get('county', {}).get('name'),
-            'city' : self.raw_location.get('address', {}).get('city')
+            'city' : self.raw_location.get('address', {}).get('city'),
         })
 
         lat_long = self.raw_location.get('address', {}).get('coordinate')
-        self.lat_long = (None, None) if lat_long is None else (lat_long.get('lat'), lat_long.get('lon'))     
+        self.lat_long = (0, 0) if lat_long is None else (lat_long.get('lat', 0), lat_long.get('lon', 0))     
 
     def _clean_description(self) -> None:
         self.baths_full = self.raw_description.get('baths_full') or 0
@@ -466,5 +487,79 @@ class house():
             if v is None:
                 print(f'{k} missing value for house {self.reference_info.id}')
 
-if __name__ == '__main__':
-    pass
+# This will take in house and geo, and generate stats based on what is fed, and then can output a dictionary that 
+# can easily be converted into a pd.Dataframe for the pipeline.
+class FeatureGenerator(BaseEstimator, TransformerMixin):
+    def __init__(self, 
+        houses    : List[house], 
+        gd        : geo_data,
+        user_home : house
+        ):
+
+        '''
+        This is the first step in the pipeline.
+        This will import a list of houses, the geo data, and the user house
+
+         - Look at distances between coordinates, NOT ZIPCODES
+         - Need to look at listing price / median price of the zipcode.
+        '''
+
+        self.houses = houses
+        self.gd = gd
+        self.user_home = user_home
+
+        self.user_home_lat_lon  = (
+            self.user_home.get('centroid', {}).get('lat', 0),
+            self.user_home.get('centroid', {}).get('lon', 0)
+        )
+
+        # I need to keep in mind here that this is a list of houses
+        # I will need to do do these functions in  some sort of apply or list comprehension
+        self.houses = list(map(self._generate_distance_between_coordinates, self.houses))
+        
+        self.features = list(map(self._generate_features, self.houses))
+        self.targets = list(map(self._generate_targets, self.houses))
+
+    def __repr__(self) -> str:
+        pass
+
+    def _generate_distance_between_coordinates(self, h : house) -> house:
+        user_loc : Tuple[float, float] = self.user_home_lat_lon
+        query_loc : Tuple[float, float] = h.lat_long
+
+        lat1, lon1 = radians(user_loc[0]), radians(user_loc[1])
+        lat2, lon2 = radians(query_loc[0]), radians(query_loc[1])
+
+        # Haversine formula
+        dlon, dlat = lon2 - lon1, lat2 - lat1
+        a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+
+        c = 2 * asin(sqrt(a))
+        r = 6371 # Radius of earth in kilometers. Use 3956 for miles
+        h.future_stats['distance_from_user_home'] =  c * r
+        return h
+
+    def _generate_features(self, h) -> dict:
+        h.features = {
+            'Days_listed' : int(h.list_date_delta or 0),
+            'Days_updated' : int(h.last_update_delta or 0),
+            'baths_full' : int(h.baths_full),
+            'baths_3qtr' : int(h.baths_3qtr),
+            'baths_half' : int(h.baths_half),
+            'baths_1qtr' : int(h.baths_1qtr),
+            'year_built' : int(h.year_built),
+            'lot_sqft' : int(h.lot_sqft),
+            'sqft' : int(h.sqft),
+            'garage' : int(h.garage),
+            'stories' : int(h.stories),
+            'beds' : int(h.beds),
+            'type' : str(h.type),
+            'tags' : h.tags or [],
+            'new_construction' : bool(h.new_construction),
+            'distance_to_home' : 1 / (1 + float(h.future_stats.get('distance_from_user_home', 0) or 0))
+        }
+        
+        return h.features
+    
+    def _generate_targets(self, h) -> int:
+        return int(h.price or 0)
