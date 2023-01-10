@@ -514,9 +514,8 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
         )
 
         # I need to keep in mind here that this is a list of houses
-        # I will need to do do these functions in  some sort of apply or list comprehension
         self.houses = list(map(self._generate_distance_between_coordinates, self.houses))
-        
+        self.houses = list(filter(self._remove_bad_listings, self.houses))
         self.features = list(map(self._generate_features, self.houses))
         self.targets = list(map(self._generate_targets, self.houses))
 
@@ -535,9 +534,16 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
         a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
 
         c = 2 * asin(sqrt(a))
-        r = 6371 # Radius of earth in kilometers. Use 3956 for miles
+        r = 6371 # Radius of earth: 6371 kilometers / 3956 miles
         h.future_stats['distance_from_user_home'] =  c * r
         return h
+
+    def _remove_bad_listings(self, h : house) -> bool:
+        if h.lot_sqft > 1_000_000:
+            return False
+        if sum([int(h.baths_full), int(h.baths_3qtr), int(h.baths_half), int(h.baths_1qtr)]) == 0:
+            return False
+        return True
 
     def _generate_features(self, h) -> dict:
         h.features = {
