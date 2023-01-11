@@ -543,6 +543,8 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
             return False
         if sum([int(h.baths_full), int(h.baths_3qtr), int(h.baths_half), int(h.baths_1qtr)]) == 0:
             return False
+        if int(h.price or 0) > 5_000_000:
+            return False
         return True
 
     def _generate_features(self, h) -> dict:
@@ -559,7 +561,7 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
             'garage' : int(h.garage),
             'stories' : int(h.stories),
             'beds' : int(h.beds),
-            'type' : str(h.type),
+            #'type' : str(h.type),
             'tags' : h.tags or [],
             'new_construction' : bool(h.new_construction),
             'distance_to_home' : 1 / (1 + float(h.future_stats.get('distance_from_user_home', 0) or 0))
