@@ -1,8 +1,11 @@
 # This is going to be where I keep all the API endpoints.
+
+# type: ignore
+
 from retrying import retry
 from ediblepickle import checkpoint
-from beartype import beartype
-from beartype.typing import Tuple
+from beartype._decor.decormain import beartype
+from beartype.typing import Tuple, Union
 from typing import Literal, List
 from datetime import datetime
 from urllib.parse import quote
@@ -12,7 +15,7 @@ import html
 import string
 
 from sklearn.base import TransformerMixin, BaseEstimator
-from math import radians, cos, sin, asin, sqrt
+from math import radians, cos, sin, asin, sqrt, atan2
 
 import keys as k
 
@@ -78,10 +81,11 @@ def get_PropertyValue(property_id : str) -> dict:
     return response.json()
 
 def get_Properties(
+        parent_pid    : str,
         market_status : Literal['for_sale','sold'],
-        city_state    : Tuple[str, str] = None,
-        zip_code      : str = None,
-        n_results     : int = None,
+        city_state    : Tuple[None, Tuple[str, str]] = None,
+        zip_code      : Tuple[None, str] = None,
+        n_results     : int = 1000,
         property_type : str = 'single_family',
         offset        : int = 0,
         verbose       : bool = False
@@ -151,6 +155,7 @@ def get_Properties(
         verbose, 
         querystring, 
         url, 
+        zzzparent_pid = parent_pid,
         zzzzipcode = querystring.get('zipcode', '00000'),
         zzzcity = querystring.get('city', 'XXXXX'),
         zzzsort = querystring.get('sort')
@@ -163,13 +168,14 @@ def get_Properties(
 
 @beartype
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=string.Template('${zzzzipcode}_${zzzcity}_${zzzsort}.pkl'), \
+@checkpoint(key=string.Template('${zzzparent_pid}_${zzzzipcode}_${zzzcity}_${zzzsort}.pkl'), \
     work_dir='Saved Results/Properties/')
 def query_url(
         n_results : int, 
         verbose : bool, 
         querystring : dict, 
         url : str,
+        zzzparent_pid : str,
         zzzzipcode : str,
         zzzcity : str,
         zzzsort : str
@@ -219,7 +225,7 @@ def query_url(
 @beartype
 def get_UserHome(
         user_input : str
-    ) -> dict:
+    ) -> dict[dict, dict]:
 
     location_suggest = get_LocationSuggest(user_input, return_all=True)
     locations = location_suggest.get('data')
@@ -267,23 +273,30 @@ def get_HousesOfInterest(
         his will be dictated by overall reasults, this may or may not be removed based on how it works 
         when were futher down the line.
 
-    This function is currently implemented to only look at the city_state queries. This might be ammended in future iterations
-    to get some focus on the strictly local samples, but as of right now, zip_codes are not utilized.
+    This function is currently implemented to only look at the city_state queries. 
+    This might be ammended in future iterations to get some focus on the strictly local samples,
+    but as of right now, zip_codes are not utilized.
     '''
     n_listed = int(n * listed_to_sold_ratio)
     n_sold = int(n) - n_listed
+
+    parent_pid = address.get('property_id')
+
+    if not parent_pid:
+        raise Exception('User house does not have a valid property id.')
     
     # I am just going to go with city (for now)
     # TODO: Future enhancement, be able to pass a ratio of zip code and city, but not sure given I measure distance later.
-    # 
 
     listed_homes = get_Properties(
+        parent_pid=parent_pid,
         market_status='for_sale',
         city_state=(address.get('city'), address.get('state_code')),
         n_results=n_listed
     )
 
     sold_homes = get_Properties(
+        parent_pid=parent_pid,
         market_status='sold',
         city_state=(address.get('city'), address.get('state_code')),
         n_results=n_sold
@@ -295,13 +308,14 @@ def get_HousesOfInterest(
             print(f'Shortfall in listed houses detected, appending {str(new_n_results)} of current listing to results.')
 
         sold_homes_v2 = get_Properties(
+            parent_pid=parent_pid,
             market_status='sold',
             city_state=(address.get('city'), address.get('state_code')),
             n_results=n_listed - len(listed_homes['houses']),
             offset=new_n_results
         )
 
-        sold_homes['houses'].append(sold_homes_v2['houses'])
+        sold_homes['houses'].extend(sold_homes_v2['houses'])
 
     if len(sold_homes['houses']) < n_sold:
         new_n_results = n_sold-len(sold_homes['houses'])
@@ -309,6 +323,7 @@ def get_HousesOfInterest(
             print(f'Shortfall in listed houses detected, appending {str(new_n_results)} of current listing to results.')
 
         listed_homes_v2 = get_Properties(
+            parent_pid=parent_pid,
             market_status='for_sale',
             city_state=(address.get('city'), address.get('state_code')),
             n_results=n_listed,
@@ -446,7 +461,7 @@ class house():
         })
 
         lat_long = self.raw_location.get('address', {}).get('coordinate')
-        self.lat_long = (0, 0) if lat_long is None else (lat_long.get('lat', 0), lat_long.get('lon', 0))     
+        self.lat_long = (0, 0) if lat_long in [None, {}] else (lat_long.get('lat', 0), lat_long.get('lon', 0))     
 
     def _clean_description(self) -> None:
         self.baths_full = self.raw_description.get('baths_full') or 0
@@ -491,7 +506,7 @@ class house():
 # can easily be converted into a pd.Dataframe for the pipeline.
 class FeatureGenerator(BaseEstimator, TransformerMixin):
     def __init__(self, 
-        houses    : List[house], 
+        houses    : List[dict], 
         gd        : geo_data,
         user_home : house
         ):
@@ -501,10 +516,15 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
         This will import a list of houses, the geo data, and the user house
 
          - Look at distances between coordinates, NOT ZIPCODES
-         - Need to look at listing price / median price of the zipcode.
         '''
+        self.houses = []
+        self._unique_property_ids = []
 
-        self.houses = houses
+        for h in houses:
+            if h['property_id'] not in self._unique_property_ids:
+                self._unique_property_ids.append(h['property_id'])
+                self.houses.append(house(h))
+
         self.gd = gd
         self.user_home = user_home
 
@@ -534,8 +554,9 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
         a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
 
         c = 2 * asin(sqrt(a))
-        r = 6371 # Radius of earth: 6371 kilometers / 3956 miles
+        r = 3956 # Radius of earth: 6371 kilometers / 3956 miles
         h.future_stats['distance_from_user_home'] =  c * r
+        h.future_stats['angle_from_user_home'] = atan2((lat2 - lat1), (lon2 - lon1))
         return h
 
     def _remove_bad_listings(self, h : house) -> bool:
@@ -549,6 +570,7 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
 
     def _generate_features(self, h) -> dict:
         h.features = {
+            'Property_ID' : h.reference_info.get('id'),
             'Days_listed' : int(h.list_date_delta or 0),
             'Days_updated' : int(h.last_update_delta or 0),
             'baths_full' : int(h.baths_full),
@@ -561,10 +583,10 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
             'garage' : int(h.garage),
             'stories' : int(h.stories),
             'beds' : int(h.beds),
-            #'type' : str(h.type),
             'tags' : h.tags or [],
             'new_construction' : bool(h.new_construction),
-            'distance_to_home' : 1 / (1 + float(h.future_stats.get('distance_from_user_home', 0) or 0))
+            'distance_to_home' : h.future_stats.get('distance_from_user_home'),
+            'angle_from_home' : h.future_stats.get('angle_from_user_home')
         }
         
         return h.features
