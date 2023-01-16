@@ -586,7 +586,8 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
             'tags' : h.tags or [],
             'new_construction' : bool(h.new_construction),
             'distance_to_home' : h.future_stats.get('distance_from_user_home'),
-            'angle_from_home' : h.future_stats.get('angle_from_user_home')
+            'lat' : h.lat_long[0],
+            'long' : h.lat_long[1]
         }
         
         return h.features
