@@ -461,7 +461,7 @@ class house():
         })
 
         lat_long = self.raw_location.get('address', {}).get('coordinate')
-        self.lat_long = (0, 0) if lat_long in [None, {}] else (lat_long.get('lat', 0), lat_long.get('lon', 0))     
+        self.lat_long = (None, None) if lat_long in [None, {}] else (lat_long.get('lat'), lat_long.get('lon'))     
 
     def _clean_description(self) -> None:
         self.baths_full = self.raw_description.get('baths_full') or 0
@@ -564,7 +564,11 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
             return False
         if sum([int(h.baths_full), int(h.baths_3qtr), int(h.baths_half), int(h.baths_1qtr)]) == 0:
             return False
+        if int(h.beds) == 0:
+            return False
         if int(h.price or 0) > 5_000_000:
+            return False
+        if int(h.lot_sqft or 0) > 15_000:
             return False
         return True
 
