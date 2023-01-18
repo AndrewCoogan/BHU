@@ -546,6 +546,11 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
         user_loc : Tuple[float, float] = self.user_home_lat_lon
         query_loc : Tuple[float, float] = h.lat_long
 
+        if None in query_loc:
+            h.future_stats['distance_from_user_home'] =  None
+            h.future_stats['angle_from_user_home'] = None
+            return h
+
         lat1, lon1 = radians(user_loc[0]), radians(user_loc[1])
         lat2, lon2 = radians(query_loc[0]), radians(query_loc[1])
 
@@ -575,6 +580,7 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
     def _generate_features(self, h) -> dict:
         h.features = {
             'Property_ID' : h.reference_info.get('id'),
+            'Status' : h.status,
             'Days_listed' : int(h.list_date_delta or 0),
             'Days_updated' : int(h.last_update_delta or 0),
             'baths_full' : int(h.baths_full),
