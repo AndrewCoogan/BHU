@@ -414,8 +414,8 @@ class house():
         }
 
         self.raw_listing : dict = listing
-        self.raw_last_update : str = listing['last_update_date']
-        self.raw_list_date : str = listing['list_date']
+        self.raw_last_update : str = listing.get('last_update_date')
+        self.raw_list_date : str = listing.get('list_date')
         self.tags : list = listing.get('tags', [])
         self.price : Tuple[int, float] = max(
             (listing.get('list_price') or 0),
