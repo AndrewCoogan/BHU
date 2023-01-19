@@ -357,7 +357,7 @@ class geo_data():
         self.market_stats = self._parse_statistics(stats.get('geo_statistics', {}).get('housing_market'))
 
     def __repr__(self) -> str:
-        pass
+        return f'Looking in {self.city_info}.'
 
     def _parse_areas(self, geos : dict) -> dict:
         return None if geos is None else {
@@ -437,7 +437,7 @@ class house():
         self.features = {}
 
     def __repr__(self) -> str:
-        pass
+        return f'{self.reference_info["address"]}, {self.reference_info["city"]} {self.reference_info["state"]}'
         
     def _convert_date(self, date : str) -> datetime:
         return datetime.strptime(date, '%Y-%m-%d')
@@ -452,12 +452,13 @@ class house():
         
     def _clean_location(self) -> None:
         self.reference_info.update({
+            'address' : self.raw_location.get('address', {}).get('line'),
             'zip_code' : self.raw_location.get('address', {}).get('postal_code'),
             'state' : self.raw_location.get('address', {}).get('state'),
             'google_map_street_view' : self.raw_location.get('street_view_url'),
             'fips_code' : self.raw_location.get('county', {}).get('fips_code'),
             'county' : self.raw_location.get('county', {}).get('name'),
-            'city' : self.raw_location.get('address', {}).get('city'),
+            'city' : self.raw_location.get('address', {}).get('city')
         })
 
         lat_long = self.raw_location.get('address', {}).get('coordinate')
