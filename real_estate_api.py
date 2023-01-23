@@ -405,8 +405,12 @@ class house():
         Description Cleaning
     '''
     def __init__(self, 
-            listing : dict
+            listing : dict,
+            user_house : bool = False
         ):
+
+        if user_house:
+            listing = self._convert_user_home(listing)
         
         self.reference_info = { # This is stuff not going into the model
             'id' : listing.get('property_id', ''),
@@ -415,7 +419,7 @@ class house():
 
         self.raw_listing : dict = listing
         self.raw_last_update : str = listing.get('last_update_date')
-        self.raw_list_date : str = listing.get('list_date')
+        self.raw_list_date : str = listing.get('list_date') # What does this mean for sold houses?
         self.tags : list = listing.get('tags', [])
         self.price : Tuple[int, float] = max(
             (listing.get('list_price') or 0),
@@ -439,6 +443,27 @@ class house():
     def __repr__(self) -> str:
         return f'{self.reference_info["address"]}, {self.reference_info["city"]} {self.reference_info["state"]}'
         
+    def _convert_user_home(self, user_home) -> dict:
+        '''
+        This is going to be sort of obnoxous. The structure of the direct query for a property id is a different
+        structure than if you query a list of sold/listed properties. I am going to convert it here to get what
+        needs in the form thats expected for the rest of the class processing.
+        '''
+        details = user_home['data']['property_detail']
+        transformed_user_home = defaultdict(str)
+
+        id = details.get('forwarded_mpr_ids', ['']) or ['']
+
+        transformed_user_home['property_id'] = id[0] # Is this safe?
+        transformed_user_home['last_update_date'] = details.get('prop_common', {}).get('last_update')
+        transformed_user_home['tags'] = details.get('search_tags', []) or []
+        transformed_user_home['sold_price'] = get_PropertyValue(id[0]) if id[0] != '' else None
+        transformed_user_home['new_construction'] = details.get('new_construction', False) or False
+        transformed_user_home['status'] = 'sold'
+        
+
+        return transformed_user_home
+
     def _convert_date(self, date : str) -> datetime:
         return datetime.strptime(date, '%Y-%m-%d')
     
