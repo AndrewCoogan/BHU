@@ -51,12 +51,6 @@ def get_LocationSuggest(
 def get_PropertyDetail(
         property_id : str
     ) -> dict:
-    
-    if not isinstance(property_id, str):
-        try:
-            property_id = str(property_id)
-        except:
-            raise Exception('Could not convert input to string.')
 
     url = "https://us-real-estate.p.rapidapi.com/v2/property-detail"
 
@@ -69,8 +63,11 @@ def get_PropertyDetail(
 
 @beartype
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=lambda args, kwargs: quote(kwargs['property_id']) + '.pkl', work_dir='Saved Results/PropertyValue/')
-def get_PropertyValue(property_id : str) -> dict:
+@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='Saved Results/PropertyValue/')
+def get_PropertyValue(
+        property_id : str
+    ) -> dict:
+    
     url = "https://us-real-estate.p.rapidapi.com/for-sale/home-estimate-value"
 
     querystring = {
@@ -460,7 +457,7 @@ class house():
         transformed_user_home['sold_price'] = get_PropertyValue(id[0]) if id[0] != '' else None
         transformed_user_home['new_construction'] = details.get('new_construction', False) or False
         transformed_user_home['status'] = 'sold'
-        
+
 
         return transformed_user_home
 
