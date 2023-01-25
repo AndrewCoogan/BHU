@@ -67,7 +67,7 @@ def get_PropertyDetail(
 def get_PropertyValue(
         property_id : str
     ) -> dict:
-    
+
     url = "https://us-real-estate.p.rapidapi.com/for-sale/home-estimate-value"
 
     querystring = {
@@ -408,6 +408,8 @@ class house():
 
         if user_house:
             listing = self._convert_user_home(listing)
+
+        print(listing)
         
         self.reference_info = { # This is stuff not going into the model
             'id' : listing.get('property_id', ''),
@@ -416,7 +418,7 @@ class house():
 
         self.raw_listing : dict = listing
         self.raw_last_update : str = listing.get('last_update_date')
-        self.raw_list_date : str = listing.get('list_date') # What does this mean for sold houses?
+        self.raw_list_date : str = listing.get('list_date') or listing.get('sold_date')
         self.tags : list = listing.get('tags', [])
         self.price : Tuple[int, float] = max(
             (listing.get('list_price') or 0),
@@ -440,6 +442,15 @@ class house():
     def __repr__(self) -> str:
         return f'{self.reference_info["address"]}, {self.reference_info["city"]} {self.reference_info["state"]}'
         
+    def _query_price_API(self, id : Tuple[int, str]) -> dict:
+        pv = get_PropertyValue(str(id[0]))
+        pv = pv.get('data', False)
+
+        if not pv:
+            return {}
+        
+        ### I need to parse this.
+
     def _convert_user_home(self, user_home) -> dict:
         '''
         This is going to be sort of obnoxous. The structure of the direct query for a property id is a different
@@ -447,18 +458,69 @@ class house():
         needs in the form thats expected for the rest of the class processing.
         '''
         details = user_home['data']['property_detail']
-        transformed_user_home = defaultdict(str)
+        transformed_user_home = {}
 
         id = details.get('forwarded_mpr_ids', ['']) or ['']
-
         transformed_user_home['property_id'] = id[0] # Is this safe?
-        transformed_user_home['last_update_date'] = details.get('prop_common', {}).get('last_update')
         transformed_user_home['tags'] = details.get('search_tags', []) or []
-        transformed_user_home['sold_price'] = get_PropertyValue(id[0]) if id[0] != '' else None
+        transformed_user_home['sold_price'] = 
         transformed_user_home['new_construction'] = details.get('new_construction', False) or False
         transformed_user_home['status'] = 'sold'
 
+        '''
+        _clean_location is expecting a few things:
+            ['last_update_date']
+            ['sold_date'], this is just a choice to make.
+        '''
+        today = datetime.now().strftime("%Y-%m-%d")
+        transformed_user_home['last_update_date'] = details.get('prop_common', {}).get('last_update', today)
+        transformed_user_home['sold_date'] = details.get('sold_date')
 
+        '''
+        _clean_location is expecting a few things:
+            ['location'] is a dict that contains:
+                ['address'] - line, postal_code, state, city
+                ['county'] - fips_code, name
+                ['street_view_url'] - list of url's? Idk, leving placeholder there.
+        '''
+
+        transformed_user_home['location'] = {
+            'address' : details.get('address', {}),
+            'county' : {
+                'county' : details.get('address', {}).get('county')
+            },
+            'street_view_url' : []
+        }
+
+        # Renaming b/c im lazy.
+        transformed_user_home['location']['address']['coordinate'] = \
+            transformed_user_home['location']['address']['location']
+
+
+        '''
+        _clean_description is expecting a few things:
+            a bunch of stats about the house.
+            I need to convert bed -> beds
+            garage from string to int
+
+        '''
+
+        desc = details.get('public_records', [{}])[0]
+        desc.update(details.get('prop_common', {}))
+
+        for k, v in desc.items():
+            if k == 'bed':
+                desc['beds'] = v
+            if k.startswith('bed_'):
+                parsed = k.split('_')
+                if len(parsed) == 1:
+                    raise Exception(f'Error in translating user home to house class: {desc}')
+                else:
+                    desc[f'beds_{parsed[1]}'] = v
+            if k == 'garage':
+                desc['garage'] = 1 if int(v) > 1 else 0
+
+        transformed_user_home['description'] = desc
         return transformed_user_home
 
     def _convert_date(self, date : str) -> datetime:
