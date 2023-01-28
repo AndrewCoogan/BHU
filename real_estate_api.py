@@ -338,6 +338,29 @@ def get_HousesOfInterest(
 
     return listed_homes
 
+@beartype
+@retry(stop_max_attempt_number=5)
+@checkpoint(key=string.Template('${lat}_${lon}.pkl'), work_dir='Saved Results/WalkScore/')
+def get_WalkScore(
+    address : str,
+    lat : float,
+    lon : float
+    ) -> dict: 
+
+    querystring = {
+        "format":'json',
+        "address":quote(address),
+        "lat":lat,
+        "lon":lon,
+        "transit":1,
+        "bike":1,
+        "wsapikey" : k.getKeys()['WalkscoreKey']
+    }
+
+    walkscore_api_path = "https://api.walkscore.com/score"
+
+    pass
+    
 class geo_data():
     '''
     This is going to be used to organize the meta information about each query.
