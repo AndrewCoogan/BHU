@@ -19,8 +19,8 @@ from math import radians, cos, sin, asin, sqrt, atan2
 
 import keys as k
 
+DISABLE_WALKSCORE = False
 RESULTS_PER_REQUEST_LIMIT = 42
-
 USREALESTATE_API_HEADERS = {
     "X-RapidAPI-Key": k.getKeys()['USRealEstate'],
     "X-RapidAPI-Host": "us-real-estate.p.rapidapi.com"
@@ -345,7 +345,7 @@ def get_WalkScore(
     address : str,
     lat : float,
     lon : float
-    ) -> dict: 
+    ) -> dict:
 
     querystring = {
         "format":'json',
@@ -357,9 +357,10 @@ def get_WalkScore(
         "wsapikey" : k.getKeys()['WalkscoreKey']
     }
 
-    walkscore_api_path = "https://api.walkscore.com/score"
+    url = "https://api.walkscore.com/score"
 
-    pass
+    response = requests.request("GET", url, params=querystring)
+    return response.json()
     
 class geo_data():
     '''
@@ -430,10 +431,10 @@ class house():
         ):
 
         if user_house:
+            # Convert this to what we need for the feature generation and anything below.
             listing = self._convert_user_home(listing)
+            return None
 
-        print(listing)
-        
         self.reference_info = { # This is stuff not going into the model
             'id' : listing.get('property_id', ''),
             'photos' : 'to be added'
@@ -443,13 +444,15 @@ class house():
         self.raw_last_update : str = listing.get('last_update_date')
         self.raw_list_date : str = listing.get('list_date') or listing.get('sold_date')
         self.tags : list = listing.get('tags', [])
-        self.price : Tuple[int, float] = max(
-            (listing.get('list_price') or 0),
-            (listing.get('sold_price') or 0),
-            (listing.get('description', {}).get('list_price') or 0),
-            (listing.get('description', {}).get('sold_price') or 0))
-        self.new_construction : bool = listing.get('flags', {}).get('is_new_construction', False) or False
         self.status : Literal['sold', 'for_sale', 'NO_STATUS'] = listing.get('status', 'NO_STATUS')
+
+        self.price : Tuple[int, float] = max(
+            (listing.get('list_price') or 0), (listing.get('description', {}).get('list_price') or 0)
+            ) if self.status == 'for_sale' else max(        
+            (listing.get('sold_price') or 0), (listing.get('description', {}).get('sold_price') or 0)
+            )
+
+        self.new_construction : bool = listing.get('flags', {}).get('is_new_construction', False) or False
 
         self.raw_location : dict = listing['location']
         self.raw_description : dict = listing['description']
@@ -457,6 +460,18 @@ class house():
         self._clean_dates()
         self._clean_location()
         self._clean_description()
+
+        self.walk_score_raw = {}
+        if not DISABLE_WALKSCORE:
+            self.walk_score_raw = get_WalkScore(
+                address=self.address,
+                lat=self.lat_long[0],
+                lon=self.lat_long[1]
+            )
+
+        self.walk_score = self.walk_score_raw.get('walkscore')
+        self.transit_score = self.walk_score_raw.get('transit', {}).get('score')
+        self.bike_score = self.walk_score_raw.get('bike', {}).get('score')
 
         # This is going to be used to store stuff in the future.
         self.future_stats = {}
@@ -472,6 +487,7 @@ class house():
         if not pv:
             return {}
         
+        pass
         ### I need to parse this.
 
     def _convert_user_home(self, user_home) -> dict:
@@ -479,6 +495,9 @@ class house():
         This is going to be sort of obnoxous. The structure of the direct query for a property id is a different
         structure than if you query a list of sold/listed properties. I am going to convert it here to get what
         needs in the form thats expected for the rest of the class processing.
+
+        ^^^ This guy was an idiot. We are just going to get whatever the feature generator is expecting and punt 
+        the rest. I will just make the processing stop once this returns.
         '''
         details = user_home['data']['property_detail']
         transformed_user_home = {}
@@ -486,7 +505,7 @@ class house():
         id = details.get('forwarded_mpr_ids', ['']) or ['']
         transformed_user_home['property_id'] = id[0] # Is this safe?
         transformed_user_home['tags'] = details.get('search_tags', []) or []
-        transformed_user_home['sold_price'] = 
+        transformed_user_home['sold_price'] = None # FIX THIS
         transformed_user_home['new_construction'] = details.get('new_construction', False) or False
         transformed_user_home['status'] = 'sold'
 
@@ -562,14 +581,20 @@ class house():
             'address' : self.raw_location.get('address', {}).get('line'),
             'zip_code' : self.raw_location.get('address', {}).get('postal_code'),
             'state' : self.raw_location.get('address', {}).get('state'),
+            'state_code' : self.raw_location.get('address', {}).get('state_code'),
             'google_map_street_view' : self.raw_location.get('street_view_url'),
             'fips_code' : self.raw_location.get('county', {}).get('fips_code'),
             'county' : self.raw_location.get('county', {}).get('name'),
-            'city' : self.raw_location.get('address', {}).get('city')
+            'city' : self.raw_location.get('address', {}).get('city'),
         })
 
         lat_long = self.raw_location.get('address', {}).get('coordinate')
-        self.lat_long = (None, None) if lat_long in [None, {}] else (lat_long.get('lat'), lat_long.get('lon'))     
+        self.lat_long = (None, None) if lat_long in [None, {}] else (lat_long.get('lat'), lat_long.get('lon')) 
+        self.address = self.reference_info['address'] + ' ' +\
+            self.reference_info['city'] + ' ' +\
+            self.reference_info['state_code'] + ' ' +\
+            self.reference_info['zip_code']
+    
 
     def _clean_description(self) -> None:
         self.baths_full = self.raw_description.get('baths_full') or 0
@@ -583,32 +608,6 @@ class house():
         self.stories = self.raw_description.get('stories') or 1
         self.beds = self.raw_description.get('beds') or 0
         self.type = self.raw_description.get('type') or 'NONE'
-
-    def validate(self) -> None:
-        '''
-        This is just going to look at the data we will need at the next step and see if its mostly good.
-        '''
-        validation_dict = {
-            'Days_listed' : self.list_date_delta,
-            'Days_updated' : self.last_update_delta,
-            'baths_full' : self.baths_full,
-            'baths_3qtr' : self.baths_3qtr,
-            'baths_half' : self.baths_half,
-            'baths_1qtr' : self.baths_1qtr,
-            'year_built' : self.year_built,
-            'lot_sqft' : self.lot_sqft,
-            'sqft' : self.sqft,
-            'garage' : self.garage,
-            'stories' : self.stories,
-            'beds' : self.beds,
-            'type' : self.type,
-            'tags' : self.tags,
-            'new_construction' : self.new_construction
-        }
-
-        for k, v in validation_dict.items():
-            if v is None:
-                print(f'{k} missing value for house {self.reference_info.id}')
 
 # This will take in house and geo, and generate stats based on what is fed, and then can output a dictionary that 
 # can easily be converted into a pd.Dataframe for the pipeline.
