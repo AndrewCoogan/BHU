@@ -97,8 +97,8 @@ def get_Properties(
     and am not sure why that is happening.
     For now, I will be checkpointing the parent function.
 
-    Although offset might seem a bit strange to pass in here,I will be checking that there is enough samples requested.
-    The first round of outputs will dictate if we need to query more sold/for sale homes.
+    Although offset might seem a bit strange to pass in here,I will be checking that there is enough samples 
+    requested. The first round of outputs will dictate if we need to query more sold/for sale homes.
     '''
 
     if city_state is None and zip_code is None:
@@ -417,8 +417,8 @@ class house():
          2) the MODEL, tags, list_prices, other flags. What if we created a word cloud and have the user select key words for 
             their house until they have selected some flat number or % contribution to model from the tags TBD. There will be 
             dates there, we will use days old (or something similar) for the model training, while the actual took will use zero, 
-            as the user is entering 100% correct info. This may or may not be a good idea, as it might have unintended implications
-            within the model.
+            as the user is entering 100% correct info. This may or may not be a good idea, as it might have unintended 
+            implications within the model.
 
     Interior functions:
         Date Cleaning
@@ -430,10 +430,12 @@ class house():
             user_house : bool = False
         ):
 
+        self.user_house : bool = user_house
+
         if user_house:
             # Convert this to what we need for the feature generation and anything below.
-            listing = self._convert_user_home(listing)
-            return None
+            self.listing_data = self._convert_user_home(listing)
+            return
 
         self.reference_info = { # This is stuff not going into the model
             'id' : listing.get('property_id', ''),
@@ -462,6 +464,9 @@ class house():
         self._clean_description()
 
         self.walk_score_raw = {}
+
+        # Do I want to try and multithread this?
+        # I think I need to generally diable this, we dont have the cores to query this.
         if not DISABLE_WALKSCORE:
             self.walk_score_raw = get_WalkScore(
                 address=self.address,
@@ -478,6 +483,8 @@ class house():
         self.features = {}
 
     def __repr__(self) -> str:
+        if self.user_house:
+            return f'This is your home silly, {self.listing_data["address"]}.' 
         return f'{self.reference_info["address"]}, {self.reference_info["city"]} {self.reference_info["state"]}'
         
     def _query_price_API(self, id : Tuple[int, str]) -> dict:
@@ -499,72 +506,79 @@ class house():
         ^^^ This guy was an idiot. We are just going to get whatever the feature generator is expecting and punt 
         the rest. I will just make the processing stop once this returns.
         '''
-        details = user_home['data']['property_detail']
-        transformed_user_home = {}
-
-        id = details.get('forwarded_mpr_ids', ['']) or ['']
-        transformed_user_home['property_id'] = id[0] # Is this safe?
-        transformed_user_home['tags'] = details.get('search_tags', []) or []
-        transformed_user_home['sold_price'] = None # FIX THIS
-        transformed_user_home['new_construction'] = details.get('new_construction', False) or False
-        transformed_user_home['status'] = 'sold'
+        
+        '''
+        Baths are a disaster, so this is what we are going to do.
 
         '''
-        _clean_location is expecting a few things:
-            ['last_update_date']
-            ['sold_date'], this is just a choice to make.
-        '''
-        today = datetime.now().strftime("%Y-%m-%d")
-        transformed_user_home['last_update_date'] = details.get('prop_common', {}).get('last_update', today)
-        transformed_user_home['sold_date'] = details.get('sold_date')
+        property_details = user_home.get('data', {}).get('property_detail')
 
-        '''
-        _clean_location is expecting a few things:
-            ['location'] is a dict that contains:
-                ['address'] - line, postal_code, state, city
-                ['county'] - fips_code, name
-                ['street_view_url'] - list of url's? Idk, leving placeholder there.
-        '''
+        if property_details is None:
+            raise Exception('User home data is empty.')
 
-        transformed_user_home['location'] = {
-            'address' : details.get('address', {}),
-            'county' : {
-                'county' : details.get('address', {}).get('county')
-            },
-            'street_view_url' : []
+        prop_common = property_details.get('prop_common', {})
+        features = property_details.get('features',{})
+        public_records = property_details.get('public_records', [{}])[0]
+        address = property_details['address']
+
+        num_garage = 0
+        garage_details = list(filter(lambda l: l['category'].startswith('Garage'), features))
+        if len(garage_details) > 0:
+            for gd in garage_details[0]['text']:
+                g_split = gd.split(':')
+                if 'garage space' in g_split[0].lower():
+                    num_garage = int(g_split[1])
+
+        # Should I get cute with how I deal with the inequality of bathrooms or just go with it?
+
+        raw_return = {
+            'property_id' : property_details.get('id', 'MISSING'),
+            'status' : 'sold',
+            'days_listed' : 0,
+            'days_updated' : 0,
+            'baths_full' : int(prop_common.get('bath_full', 0)),
+            'baths_3qtr' : int(prop_common.get('bath_3qtr', 0)),
+            'baths_half' : int(prop_common.get('bath_half', 0)),
+            'baths_1qtr' : int(prop_common.get('bath_1qtr', 0)),
+            'year_built' : prop_common.get('year_built'),
+            'lot_sqft' : int(prop_common.get('lot_sqft', 0)), # We should impute, median?
+            'sqft' : int(prop_common.get('sqft', 0)), # We should impute, median?
+            'garage' : num_garage,
+            'stories' : public_records.get('stories', 1),
+            'beds' : public_records.get('beds'),
+            'bath' : prop_common.get('bath'),
+            'tags' : property_details['search_tags'],
+            'new_construction' : False,
+            'distance_to_home' : 0,
+            'lat_long' : (address.get('location', {}).get('lat', 0), address.get('location', {}).get('lon', 0)),
+            'address' : address.get('line')
         }
 
-        # Renaming b/c im lazy.
-        transformed_user_home['location']['address']['coordinate'] = \
-            transformed_user_home['location']['address']['location']
+        total_baths = raw_return['baths_full'] + \
+            0.75 * raw_return['baths_3qtr'] + \
+            0.5 * raw_return['baths_half'] + \
+            0.25 * raw_return['baths_1qtr']
 
+        if raw_return['bath'] > total_baths:
+            missing = raw_return['bath'] - total_baths
+            # We are going to make educated guesses here
+            if missing >= 1:
+                n_full = missing // 1
+                raw_return['baths_full'] += n_full
+                missing -= n_full
+            if missing >= 0.75:
+                n_3qtr = missing // 0.75
+                raw_return['baths_3qtr'] += n_3qtr
+                missing -= 0.75 * n_3qtr
+            if missing  >= 0.5:
+                n_half = missing // 0.5
+                raw_return['baths_half'] += n_half
+                missing -= 0.5 * n_half
+            if missing >= 0.25:
+                raw_return['baths_1qtr'] += missing // 0.25
 
-        '''
-        _clean_description is expecting a few things:
-            a bunch of stats about the house.
-            I need to convert bed -> beds
-            garage from string to int
-
-        '''
-
-        desc = details.get('public_records', [{}])[0]
-        desc.update(details.get('prop_common', {}))
-
-        for k, v in desc.items():
-            if k == 'bed':
-                desc['beds'] = v
-            if k.startswith('bed_'):
-                parsed = k.split('_')
-                if len(parsed) == 1:
-                    raise Exception(f'Error in translating user home to house class: {desc}')
-                else:
-                    desc[f'beds_{parsed[1]}'] = v
-            if k == 'garage':
-                desc['garage'] = 1 if int(v) > 1 else 0
-
-        transformed_user_home['description'] = desc
-        return transformed_user_home
-
+        return raw_return
+    
     def _convert_date(self, date : str) -> datetime:
         return datetime.strptime(date, '%Y-%m-%d')
     
@@ -621,9 +635,8 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
         '''
         This is the first step in the pipeline.
         This will import a list of houses, the geo data, and the user house
-
-         - Look at distances between coordinates, NOT ZIPCODES
         '''
+        
         self.houses = []
         self._unique_property_ids = []
 
@@ -635,11 +648,6 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
         self.gd = gd
         self.user_home = user_home
 
-        self.user_home_lat_lon  = (
-            self.user_home.get('centroid', {}).get('lat', 0),
-            self.user_home.get('centroid', {}).get('lon', 0)
-        )
-
         # I need to keep in mind here that this is a list of houses
         self.houses = list(map(self._generate_distance_between_coordinates, self.houses))
         self.houses = list(filter(self._remove_bad_listings, self.houses))
@@ -650,7 +658,6 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
         pass
 
     def _generate_distance_between_coordinates(self, h : house) -> house:
-        user_loc : Tuple[float, float] = self.user_home_lat_lon
         query_loc : Tuple[float, float] = h.lat_long
 
         if None in query_loc:
@@ -658,7 +665,8 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
             h.future_stats['angle_from_user_home'] = None
             return h
 
-        lat1, lon1 = radians(user_loc[0]), radians(user_loc[1])
+        lat1 = radians(self.user_home.get('lat_long', [0,0])[0])
+        lon1 = radians(self.user_home.get('lat_long', [0,0])[1])
         lat2, lon2 = radians(query_loc[0]), radians(query_loc[1])
 
         # Haversine formula
