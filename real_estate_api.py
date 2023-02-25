@@ -499,17 +499,8 @@ class house():
 
     def _convert_user_home(self, user_home) -> dict:
         '''
-        This is going to be sort of obnoxous. The structure of the direct query for a property id is a different
-        structure than if you query a list of sold/listed properties. I am going to convert it here to get what
-        needs in the form thats expected for the rest of the class processing.
-
-        ^^^ This guy was an idiot. We are just going to get whatever the feature generator is expecting and punt 
-        the rest. I will just make the processing stop once this returns.
-        '''
-        
-        '''
-        Baths are a disaster, so this is what we are going to do.
-
+        So, the objective of this is just get the user home in a spot that we can feed it into our model.
+        If we end up adding features, this is where we need to do that.
         '''
         property_details = user_home.get('data', {}).get('property_detail')
 
@@ -536,10 +527,10 @@ class house():
             'status' : 'sold',
             'days_listed' : 0,
             'days_updated' : 0,
-            'baths_full' : int(prop_common.get('bath_full', 0)),
-            'baths_3qtr' : int(prop_common.get('bath_3qtr', 0)),
-            'baths_half' : int(prop_common.get('bath_half', 0)),
-            'baths_1qtr' : int(prop_common.get('bath_1qtr', 0)),
+            'baths_full' : int(prop_common.get('bath_full', 0) or 0),
+            'baths_3qtr' : int(prop_common.get('bath_3qtr', 0) or 0),
+            'baths_half' : int(prop_common.get('bath_half', 0) or 0),
+            'baths_1qtr' : int(prop_common.get('bath_1qtr', 0) or 0),
             'year_built' : prop_common.get('year_built'),
             'lot_sqft' : int(prop_common.get('lot_sqft', 0)), # We should impute, median?
             'sqft' : int(prop_common.get('sqft', 0)), # We should impute, median?
