@@ -465,8 +465,8 @@ class house():
 
         self.walk_score_raw = {}
 
-        # Do I want to try and multithread this?
-        # I think I need to generally diable this, we dont have the cores to query this.
+        # We are going to create a mesh of 100ish points and extrapolate.
+        # This is going to be moved the feature generator class.
         if not DISABLE_WALKSCORE:
             self.walk_score_raw = get_WalkScore(
                 address=self.address,
@@ -488,7 +488,7 @@ class house():
         return f'{self.reference_info["address"]}, {self.reference_info["city"]} {self.reference_info["state"]}'
         
     def _query_price_API(self, id : Tuple[int, str]) -> dict:
-        pv = get_PropertyValue(str(id[0]))
+        pv = get_PropertyValue(property_id = str(id[0]))
         pv = pv.get('data', False)
 
         if not pv:
@@ -497,7 +497,7 @@ class house():
         pass
         ### I need to parse this.
 
-    def _convert_user_home(self, user_home) -> dict:
+    def _convert_user_home(self, user_home) -> None:
         '''
         So, the objective of this is just get the user home in a spot that we can feed it into our model.
         If we end up adding features, this is where we need to do that.
@@ -511,6 +511,8 @@ class house():
         features = property_details.get('features',{})
         public_records = property_details.get('public_records', [{}])[0]
         address = property_details['address']
+        price_history = property_details['price_history']
+
 
         num_garage = 0
         garage_details = list(filter(lambda l: l['category'].startswith('Garage'), features))
@@ -520,55 +522,53 @@ class house():
                 if 'garage space' in g_split[0].lower():
                     num_garage = int(g_split[1])
 
-        # Should I get cute with how I deal with the inequality of bathrooms or just go with it?
+        non_zero_price_history = [p for p in price_history if (p.get('price', 0) or 0) != 0]
+        most_recent_price = max(non_zero_price_history, key=lambda d: d.get('date', '0')).get('price')
 
-        raw_return = {
-            'property_id' : property_details.get('id', 'MISSING'),
-            'status' : 'sold',
-            'days_listed' : 0,
-            'days_updated' : 0,
-            'baths_full' : int(prop_common.get('bath_full', 0) or 0),
-            'baths_3qtr' : int(prop_common.get('bath_3qtr', 0) or 0),
-            'baths_half' : int(prop_common.get('bath_half', 0) or 0),
-            'baths_1qtr' : int(prop_common.get('bath_1qtr', 0) or 0),
-            'year_built' : prop_common.get('year_built'),
-            'lot_sqft' : int(prop_common.get('lot_sqft', 0)), # We should impute, median?
-            'sqft' : int(prop_common.get('sqft', 0)), # We should impute, median?
-            'garage' : num_garage,
-            'stories' : public_records.get('stories', 1),
-            'beds' : public_records.get('beds'),
-            'bath' : prop_common.get('bath'),
-            'tags' : property_details['search_tags'],
-            'new_construction' : False,
-            'distance_to_home' : 0,
-            'lat_long' : (address.get('location', {}).get('lat', 0), address.get('location', {}).get('lon', 0)),
-            'address' : address.get('line')
-        }
+        self.reference_info = {'id' : property_details.get('id', 'USER_PID_MISSING')}
+        self.status = 'sold'
+        self.list_date_delta = 0
+        self.last_update_delta = 0
+        self.baths_full = int(prop_common.get('bath_full', 0) or 0)
+        self.baths_3qtr = int(prop_common.get('bath_3qtr', 0) or 0)
+        self.baths_half = int(prop_common.get('bath_half', 0) or 0)
+        self.baths_1qtr = int(prop_common.get('bath_1qtr', 0) or 0)
+        self.year_built = prop_common.get('year_built')
+        self.lot_sqft = int(prop_common.get('lot_sqft', 0)) # We should impute, median?
+        self.sqft = int(prop_common.get('sqft', 0)) # We should impute, median?
+        self.garage = num_garage
+        self.stories = public_records.get('stories', 1) or 1
+        self.beds = public_records.get('beds')
+        self.bath = prop_common.get('bath')
+        self.tags = property_details['search_tags']
+        self.new_construction = False
+        self.future_stats = {'distance_from_user_home' : 0}
+        self.lat_long = (address.get('location', {}).get('lat', 0), address.get('location', {}).get('lon', 0))
+        self.address : address.get('line')
+        self.price = most_recent_price
 
-        total_baths = raw_return['baths_full'] + \
-            0.75 * raw_return['baths_3qtr'] + \
-            0.5 * raw_return['baths_half'] + \
-            0.25 * raw_return['baths_1qtr']
+        total_baths = self.baths_full + \
+            0.75*self.baths_3qtr + \
+            0.5 * self.baths_half + \
+            0.25 * self.baths_1qtr
 
-        if raw_return['bath'] > total_baths:
-            missing = raw_return['bath'] - total_baths
+        if self.bath > total_baths:
+            missing = self.bath - total_baths
             # We are going to make educated guesses here
             if missing >= 1:
                 n_full = missing // 1
-                raw_return['baths_full'] += n_full
+                self.baths_full += n_full
                 missing -= n_full
             if missing >= 0.75:
                 n_3qtr = missing // 0.75
-                raw_return['baths_3qtr'] += n_3qtr
+                self.baths_3qtr += n_3qtr
                 missing -= 0.75 * n_3qtr
             if missing  >= 0.5:
                 n_half = missing // 0.5
-                raw_return['baths_half'] += n_half
+                self.baths_half += n_half
                 missing -= 0.5 * n_half
             if missing >= 0.25:
-                raw_return['baths_1qtr'] += missing // 0.25
-
-        return raw_return
+                self.baths_1qtr += missing // 0.25
     
     def _convert_date(self, date : str) -> datetime:
         return datetime.strptime(date, '%Y-%m-%d')
@@ -620,7 +620,7 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
     def __init__(self, 
         houses    : List[dict], 
         gd        : geo_data,
-        user_home : house
+        user_home : dict
         ):
 
         '''
@@ -639,11 +639,19 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
         self.gd = gd
         self.user_home = user_home
 
+        # I need to convert user house to the right format.
+        self.user_home_formatted = house(self.user_home, user_house=True)
+
         # I need to keep in mind here that this is a list of houses
         self.houses = list(map(self._generate_distance_between_coordinates, self.houses))
         self.houses = list(filter(self._remove_bad_listings, self.houses))
+
+        # This is where we are going to do the walk score 
+
         self.features = list(map(self._generate_features, self.houses))
         self.targets = list(map(self._generate_targets, self.houses))
+        self.user_features = self._generate_features(self.user_home_formatted, uh = True)
+        self.user_target = self._generate_targets(self.user_home_formatted)
 
     def __repr__(self) -> str:
         pass
@@ -683,7 +691,7 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
             return False
         return True
 
-    def _generate_features(self, h) -> dict:
+    def _generate_features(self, h, uh : bool = False) -> dict:
         h.features = {
             'Property_ID' : h.reference_info.get('id'),
             'Status' : h.status,
