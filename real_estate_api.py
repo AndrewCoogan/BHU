@@ -434,7 +434,7 @@ class house():
 
         if user_house:
             # Convert this to what we need for the feature generation and anything below.
-            self.listing_data = self._convert_user_home(listing)
+            self._convert_user_home(listing)
             return
 
         self.reference_info = { # This is stuff not going into the model
@@ -484,7 +484,7 @@ class house():
 
     def __repr__(self) -> str:
         if self.user_house:
-            return f'This is your home silly, {self.listing_data["address"]}.' 
+            return f'This is your home silly, {self.address}.' 
         return f'{self.reference_info["address"]}, {self.reference_info["city"]} {self.reference_info["state"]}'
         
     def _query_price_API(self, id : Tuple[int, str]) -> dict:
@@ -664,8 +664,8 @@ class FeatureGenerator(BaseEstimator, TransformerMixin):
             h.future_stats['angle_from_user_home'] = None
             return h
 
-        lat1 = radians(self.user_home.get('lat_long', [0,0])[0])
-        lon1 = radians(self.user_home.get('lat_long', [0,0])[1])
+        lat1 = radians(self.user_home_formatted.lat_long[0])
+        lon1 = radians(self.user_home_formatted.lat_long[1])
         lat2, lon2 = radians(query_loc[0]), radians(query_loc[1])
 
         # Haversine formula
