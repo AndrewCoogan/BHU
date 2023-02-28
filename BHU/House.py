@@ -3,7 +3,7 @@ DISABLE_WALKSCORE = False
 from typing import Literal, Tuple
 from datetime import datetime
 
-from BUU.API_Calls import get_WalkScore
+from BHU.API_Calls import get_WalkScore
 
 class House():
     '''
