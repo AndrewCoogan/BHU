@@ -1,22 +1,11 @@
 #type:ignore
-import requests
-import html
-import string
-
-from urllib.parse import quote
-from retrying import retry
-from ediblepickle import checkpoint
-from beartype._decor.decormain import beartype
-from beartype.typing import Tuple
-
-from typing import Literal, Tuple, List
+DISABLE_WALKSCORE = False
+from typing import Literal, Tuple
 from datetime import datetime
 
-from sklearn.base import TransformerMixin, BaseEstimator
-from sklearn.pipeline import Pipeline
-from math import radians, cos, sin, asin, sqrt, atan2
+from BUU.API_Calls import get_WalkScore
 
-class house():
+class House():
     '''
     This is going to be the class that houses (hehe) all the house data. Each house will have its own instance.
     When we use the API, there is a lot of data reutned nested in a number of dictionaries. This will take the 'juicy' bit.

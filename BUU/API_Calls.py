@@ -11,6 +11,8 @@ from beartype.typing import Tuple
 
 from typing import Literal, Tuple, List
 
+import keys as k
+
 RESULTS_PER_REQUEST_LIMIT = 42
 USREALESTATE_API_HEADERS = {
     "X-RapidAPI-Key": k.getKeys()['USRealEstate'],
@@ -19,7 +21,7 @@ USREALESTATE_API_HEADERS = {
 
 @beartype
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='Saved Results/LocationSuggest/')
+@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='BUU/Saved Results/LocationSuggest/')
 def get_LocationSuggest(
         search_keyword : str, 
         return_all     : bool = False
@@ -38,7 +40,7 @@ def get_LocationSuggest(
 
 @beartype
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='Saved Results/PropertyDetail/')
+@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='BUU/Saved Results/PropertyDetail/')
 def get_PropertyDetail(
         property_id : str
     ) -> dict:
@@ -54,7 +56,7 @@ def get_PropertyDetail(
 
 @beartype
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='Saved Results/PropertyValue/')
+@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='BUU/Saved Results/PropertyValue/')
 def get_PropertyValue(
         property_id : str
     ) -> dict:
@@ -157,7 +159,7 @@ def get_Properties(
 @beartype
 @retry(stop_max_attempt_number=5)
 @checkpoint(key=string.Template('${zzzparent_pid}_${zzzzipcode}_${zzzcity}_${zzzsort}.pkl'), \
-    work_dir='Saved Results/Properties/')
+    work_dir='BUU/Saved Results/Properties/')
 def query_url(
         n_results : int, 
         verbose : bool, 
@@ -331,7 +333,7 @@ def get_HousesOfInterest(
 
 @beartype
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=string.Template('${lat}_${lon}.pkl'), work_dir='Saved Results/WalkScore/')
+@checkpoint(key=string.Template('${lat}_${lon}.pkl'), work_dir='BUU/Saved Results/WalkScore/')
 def get_WalkScore(
     address : str,
     lat : float,

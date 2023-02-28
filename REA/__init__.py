@@ -1,1 +1,0 @@
-DISABLE_WALKSCORE = False

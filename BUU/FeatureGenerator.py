@@ -1,6 +1,8 @@
 #type:ignore
-from house import house
-from geo_data import geo_data
+DISABLE_WALKSCORE = False
+
+from BUU.House import House
+from BUU.GeoData import GeoData
 from typing import Tuple, List
 from math import radians, cos, sin, asin, sqrt, atan2
 
@@ -9,7 +11,7 @@ from math import radians, cos, sin, asin, sqrt, atan2
 class FeatureGenerator():
     def __init__(self, 
         houses    : List[dict], 
-        gd        : geo_data,
+        gd        : GeoData,
         user_home : dict
         ):
 
@@ -24,13 +26,13 @@ class FeatureGenerator():
         for h in houses:
             if h['property_id'] not in self._unique_property_ids:
                 self._unique_property_ids.append(h['property_id'])
-                self.houses.append(house(h))
+                self.houses.append(House(h))
 
         self.gd = gd
         self.user_home = user_home
 
         # I need to convert user house to the right format.
-        self.user_home_formatted = house(self.user_home, user_house = True)
+        self.user_home_formatted = House(self.user_home, user_house = True)
 
         # I need to keep in mind here that this is a list of houses
         self.houses = list(map(self._generate_distance_between_coordinates, self.houses))
@@ -49,9 +51,9 @@ class FeatureGenerator():
         self.user_target = self._generate_targets(self.user_home_formatted)
 
     def __repr__(self) -> str:
-        pass
+        return "This is a feature generator."
 
-    def _generate_distance_between_coordinates(self, h : house) -> house:
+    def _generate_distance_between_coordinates(self, h : House) -> House:
         query_loc : Tuple[float, float] = h.lat_long
 
         if None in query_loc:
@@ -73,7 +75,7 @@ class FeatureGenerator():
         h.future_stats['angle_from_user_home'] = atan2((lat2 - lat1), (lon2 - lon1))
         return h
 
-    def _remove_bad_listings(self, h : house) -> bool:
+    def _remove_bad_listings(self, h : House) -> bool:
         if h.lot_sqft > 1_000_000:
             return False
         if sum([int(h.baths_full), int(h.baths_3qtr), int(h.baths_half), int(h.baths_1qtr)]) == 0:
@@ -86,7 +88,7 @@ class FeatureGenerator():
             return False
         return True
 
-    def _generate_features(self, h) -> dict:
+    def _generate_features(self, h : House) -> dict:
         h.features = {
             'Property_ID' : h.reference_info.get('id'),
             'Address' : h.reference_info.get('address'),

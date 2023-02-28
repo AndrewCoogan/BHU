@@ -1,4 +1,4 @@
-from FeatureGenerator import FeatureGenerator
+from BUU.FeatureGenerator import FeatureGenerator
 from sklearn.pipeline import Pipeline
 
 class KerasModelToggle():
