@@ -35,7 +35,8 @@ class KerasModelToggle():
         Expected input is going to be in the shape {attribute : +/- 1}
         So the attribute will need to match up with the key of the model input
 
-        THOUGHT: This might be easier if we do it as a value entry rather that an iteration (ie +/-1)
+        THOUGHT: This might be easier if we do it as a value (2 or 3 half bath)
+        entry rather that an iteration (ie +/-1)
         This should be easy to change though.
         '''
         for k, v in kwargs.items():

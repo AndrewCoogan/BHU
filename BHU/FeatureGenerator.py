@@ -1,8 +1,8 @@
 #type:ignore
 DISABLE_WALKSCORE = False
 
-from BUU.House import House
-from BUU.GeoData import GeoData
+from BHU.House import House
+from BHU.GeoData import GeoData
 from typing import Tuple, List
 from math import radians, cos, sin, asin, sqrt, atan2
 
