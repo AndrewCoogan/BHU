@@ -1,0 +1,16 @@
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+
+{% extends 'header.html' %}
+{% from 'templates/about.html' %}
+
+{% block title %}About{% endblock %}
+ 
+{% block content %}
+<h1>What is BHU?</h1>
+<p>BHU is great.</p>
+
+{ % extends }
+
+{% endblock %}

@@ -1,0 +1,18 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+
+{% extends 'header.html' %}
+ 
+{% block title %}Homepage{% endblock %}
+ 
+{% block content %}
+<h1>
+    Welcome to BHU
+    <span>
+        <img src="{{ url_for('static', filename='favicon_ghost.ico') }}"/>
+    </span>
+</h1>
+<p>
+    This is the homepage!
+</p>
+{% endblock %}
