@@ -1,0 +1,47 @@
+{% from 'bootstrap5/nav.html' import render_nav_item %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>BHU Title</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon_ghost.ico') }}">
+    {{ bootstrap.load_css() }}
+    <style>
+        pre {
+            background: #ddd;
+            padding: 10px;
+        }
+        h2 {
+            margin-top: 20px;
+        }
+        footer {
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+        <div class="container">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+                aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav mr-auto">
+                {{ render_nav_item('main_page', 'Home') }}
+                {{ render_nav_item('about_form', 'About') }}
+                <li class="nav-item"><a class="nav-link" href="https://github.com/AndrewCoogan/BHU" target="_blank">GitHub</a></li>
+            </ul>
+        </div>
+        </div>
+    </nav>
+    
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    {{ bootstrap.load_js() }}
+</body>
+</html>

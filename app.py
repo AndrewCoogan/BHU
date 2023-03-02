@@ -2,8 +2,10 @@ from flask import Flask, render_template, url_for
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, Length
 from wtforms.fields import *
+from flask_bootstrap import Bootstrap5
 
 app = Flask(__name__)
+bootstrap = Bootstrap5(app)
 
 class HouseInput(FlaskForm):
     address = StringField('Username', validators=[DataRequired(), Length(1, 100)])

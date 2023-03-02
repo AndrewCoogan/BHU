@@ -1,9 +1,8 @@
-<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+{% extends 'base.html' %}
 
-{% extends 'header.html' %}
- 
-{% block title %}Homepage{% endblock %}
+{% block title %}
+Homepage
+{% endblock %}
  
 {% block content %}
 <h1>
