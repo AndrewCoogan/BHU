@@ -1,10 +1,14 @@
 #type:ignore
-DISABLE_WALKSCORE = False
+ENABLE_WALKSCORE = True
 
 from BHU.House import House
 from BHU.GeoData import GeoData
+from BHU.API_Calls import *
 from typing import Tuple, List
 from math import radians, cos, sin, asin, sqrt, atan2
+from scipy.stats.mstats import winsorize
+from sklearn.impute import SimpleImputer
+import numpy as np
 
 # This will take in house and geo, and generate stats based on what is fed, and then can output a dictionary that 
 # can easily be converted into a pd.Dataframe for the pipeline.
@@ -37,6 +41,7 @@ class FeatureGenerator():
         # I need to keep in mind here that this is a list of houses
         self.houses = list(map(self._generate_distance_between_coordinates, self.houses))
         self.houses = list(filter(self._remove_bad_listings, self.houses))
+        self._generate_winsorized_coordinates() # This needs to know all of the data.
 
         '''
         This is where we are going to do the walk score!
@@ -87,6 +92,34 @@ class FeatureGenerator():
         if int(h.lot_sqft or 0) > 15_000:
             return False
         return True
+
+    def _generate_winsorized_coordinates(self) -> None:
+        '''
+        This is going to take some of the lifting off of the pipelines, and get good data here.
+        Step 1: Winsorise
+        Step 2: Impute
+        '''
+        lat_list = [h.lat_long[0] for h in self.houses]
+        long_list = [h.lat_long[1] for h in self.houses]
+
+        lat_list = np.array(lat_list, dtype=np.float32)
+        long_list = np.array(long_list, dtype=np.float32)
+
+        lat_list_winsorized = winsorize(lat_list, (0.05, 0.05), nan_policy='omit')
+        long_list_winsorized = winsorize(long_list, (0.05, 0.05), nan_policy='omit')
+
+        si = SimpleImputer(strategy="mean")
+        lat_list_winsorized = si.fit_transform(np.array(lat_list_winsorized).reshape(-1,1))
+        long_list_winsorized = si.fit_transform(np.array(long_list_winsorized).reshape(-1,1))
+
+        self.lat_range = (np.min(lat_list_winsorized), np.max(lat_list_winsorized))
+        self.long_range = (np.min(long_list_winsorized), np.max(long_list_winsorized))
+        
+        for h, lat, long in zip(self.houses, lat_list_winsorized, long_list_winsorized):
+            h.lat_long = (lat, long)
+
+        pass
+
 
     def _generate_features(self, h : House) -> dict:
         h.features = {

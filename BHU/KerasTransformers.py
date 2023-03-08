@@ -8,7 +8,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, KBinsDiscretizer
 from sklearn.impute import SimpleImputer
 from sklearn.feature_extraction import DictVectorizer
-
 '''
 Days Listed - Linear
 Days Updated - Linear
@@ -30,9 +29,6 @@ class ToDataFrame(BaseEstimator, TransformerMixin):
         return pd.DataFrame(X).drop_duplicates(subset=['Property_ID'])
 
 class DictEncoder(BaseEstimator, TransformerMixin):
-    def __init__(self):
-        self.tags_to_keep = None
-
     def fit(self, X, y=None):
         tag_frequency = Counter(chain(*X))
         self.tags_to_keep = [k for k, v in tag_frequency.items() if v > 1]
@@ -55,9 +51,9 @@ preprocess_tags_col = Pipeline(
     ]
 )
 
+# This needs to be winzorized, or else there are going to be just empty cells with no houses given an outlier.
 preprocess_bucketize_col = Pipeline(
     [
-        ('impute', SimpleImputer(missing_values=np.nan, strategy="median")),
         ('bucketize', KBinsDiscretizer(n_bins=20, strategy='uniform'))
     ]
 )

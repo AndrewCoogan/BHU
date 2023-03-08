@@ -9,6 +9,14 @@ import pickle
 import os
 
 class KerasModel(BaseEstimator, RegressorMixin):
+    '''
+    This is the powerhouse of the cell, the model!
+    This is the final step of the pipeline. I am actually very pleased with this. It was a really good learning
+    experience to see how much you can push and do within one of these. In prior iterations of this, I was able
+    to do a GridSearchCV with this, by having the parameter in the __init__ statement and that feeding into
+    whatever you are GridSearching. As I write this, alhtough I did not do this, I could have grid searched on any
+    element of the Pipeline, which could be sick for later applications.
+    '''
     def __init__(self, 
                  user_home,
                  target_transformer,
