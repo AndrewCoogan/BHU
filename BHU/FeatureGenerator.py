@@ -1,9 +1,9 @@
 #type:ignore
-ENABLE_WALKSCORE = True
 
 from BHU.House import House
 from BHU.GeoData import GeoData
 from BHU.API_Calls import *
+from BHU.WalkScoreModel import WalkScoreModel
 from typing import Tuple, List
 from math import radians, cos, sin, asin, sqrt, atan2
 from scipy.stats.mstats import winsorize
@@ -41,14 +41,7 @@ class FeatureGenerator():
         # I need to keep in mind here that this is a list of houses
         self.houses = list(map(self._generate_distance_between_coordinates, self.houses))
         self.houses = list(filter(self._remove_bad_listings, self.houses))
-        self._generate_winsorized_coordinates() # This needs to know all of the data.
-
-        '''
-        This is where we are going to do the walk score!
-        What is the min and max, lat and long?
-        Create iteration, figure out what kind of data structure I want.
-        I think a numpy nd array would be best, can I make a graph somehow?
-        '''
+        self._generate_winsorized_coordinates()
 
         self.features = list(map(self._generate_features, self.houses))
         self.targets = list(map(self._generate_targets, self.houses))
@@ -57,6 +50,42 @@ class FeatureGenerator():
 
     def __repr__(self) -> str:
         return "This is a feature generator."
+    
+    def _clean_walk_score_value(self, score : int) -> int:
+        try:
+            score_min = max([score, 0])
+            score_max = min([score, 100])
+            clean_score = min([score_min, score_max])
+        except:
+            clean_score = np.nan
+        return clean_score
+
+    def _get_walk_score(self, h) -> House:
+        # If this is tripped, we know we do not have a model, so generate it.
+        walk_score_raw = get_WalkScore(
+            address=f'{h.city} {h.state}',
+            lat=h.lat_long[0],
+            lon=h.lat_long[1]
+        )
+
+        return {
+            'walk_score' : self._clean_walk_score_value(walk_score_raw.get('walkscore')),
+            'transit_score' : self._clean_walk_score_value(walk_score_raw.get('transit', {}).get('score')),
+            'bike_score' : self._clean_walk_score_value(walk_score_raw.get('bike', {}).get('score'))
+        }
+
+    def _sync_walk_score(self) -> None:
+        # If I want to multithread, this is where we need to do it.
+        # If I do this, I am going to lose order, so maybe return the property id?
+
+        user_ws = self._get_walk_score(self.user_home_formatted)
+        self.user_home_formatted.walk_score = user_ws.get('walk_score') or 50
+
+        for h in self.houses:
+            ws = self._get_walk_score(h)
+            h.walk_score = ws.get('walk_score') or 50
+
+        return
 
     def _generate_distance_between_coordinates(self, h : House) -> House:
         query_loc : Tuple[float, float] = h.lat_long
@@ -111,14 +140,11 @@ class FeatureGenerator():
         si = SimpleImputer(strategy="mean")
         lat_list_winsorized = si.fit_transform(np.array(lat_list_winsorized).reshape(-1,1))
         long_list_winsorized = si.fit_transform(np.array(long_list_winsorized).reshape(-1,1))
-
-        self.lat_range = (np.min(lat_list_winsorized), np.max(lat_list_winsorized))
-        self.long_range = (np.min(long_list_winsorized), np.max(long_list_winsorized))
         
         for h, lat, long in zip(self.houses, lat_list_winsorized, long_list_winsorized):
-            h.lat_long = (lat, long)
+            h.lat_long_winz = (lat, long)
 
-        pass
+        return
 
 
     def _generate_features(self, h : House) -> dict:
@@ -141,8 +167,10 @@ class FeatureGenerator():
             'tags' : h.tags or [],
             'new_construction' : bool(h.new_construction),
             'distance_to_home' : h.future_stats.get('distance_from_user_home'),
+            'lat_winz' : h.lat_long_winz[0],
+            'long_winz' : h.lat_long_winz[1],
             'lat' : h.lat_long[0],
-            'long' : h.lat_long[1]
+            'long' : h.lat_long[1],
         }
         
         return h.features

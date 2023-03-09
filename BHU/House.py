@@ -1,9 +1,7 @@
 #type:ignore
-DISABLE_WALKSCORE = False
 from typing import Literal, Tuple
 from datetime import datetime
-
-from BHU.API_Calls import get_WalkScore
+import numpy as np
 
 class House():
     '''
@@ -29,6 +27,7 @@ class House():
         ):
 
         self.user_house : bool = user_house
+        self.walk_score = np.nan
 
         if user_house:
             # Convert this to what we need for the feature generation and anything below.
@@ -61,21 +60,6 @@ class House():
         self._clean_location()
         self._clean_description()
 
-        self.walk_score_raw = {}
-
-        # We are going to create a mesh of 100ish points and extrapolate.
-        # This is going to be moved the feature generator class.
-        if not DISABLE_WALKSCORE:
-            self.walk_score_raw = get_WalkScore(
-                address=self.address,
-                lat=self.lat_long[0],
-                lon=self.lat_long[1]
-            )
-
-        self.walk_score = self.walk_score_raw.get('walkscore')
-        self.transit_score = self.walk_score_raw.get('transit', {}).get('score')
-        self.bike_score = self.walk_score_raw.get('bike', {}).get('score')
-
         # This is going to be used to store stuff in the future.
         self.future_stats = {}
         self.features = {}
@@ -91,8 +75,7 @@ class House():
 
         if not pv:
             return {}
-        
-        pass
+        return {}
         ### I need to parse this.
 
     def _convert_user_home(self, user_home) -> None:
@@ -110,6 +93,7 @@ class House():
         public_records = property_details.get('public_records', [{}])[0]
         address = property_details['address']
         price_history = property_details['price_history']
+        neighborhoods = property_details.get('neighborhoods', [{}])[0]
 
         num_garage = 0
         garage_details = list(filter(lambda l: l['category'].startswith('Garage'), features))
@@ -145,8 +129,19 @@ class House():
         self.new_construction = False
         self.future_stats = {'distance_from_user_home' : 0}
         self.lat_long = (address.get('location', {}).get('lat', 0), address.get('location', {}).get('lon', 0))
+        self.lat_long_winz = self.lat_long
         self.address = address.get('line')
         self.price = most_recent_price
+
+        if 'city' not in neighborhoods.keys():
+            raise Exception('User home is missing a City, and maybe a state.')
+        
+        if 'state_code' not in neighborhoods.keys():
+            raise Exception('User home is missing a State')
+
+        self.city = neighborhoods['city'].upper()
+        self.state = neighborhoods['state_code'].upper()
+        #self.neighborhoods = neighborhoods.get('name', '').upper()
 
         total_baths = self.baths_full + \
             0.75*self.baths_3qtr + \
@@ -170,6 +165,8 @@ class House():
                 missing -= 0.5 * n_half
             if missing >= 0.25:
                 self.baths_1qtr += missing // 0.25
+
+        return
     
     def _convert_date(self, date : str) -> datetime:
         return datetime.strptime(date, '%Y-%m-%d')
@@ -181,25 +178,27 @@ class House():
         self.list_date = self._convert_date(list_date_parsed[0]) if len(list_date_parsed) == 2 else None
         self.last_update_delta = None if self.last_update is None else max((datetime.now() - self.last_update).days, 0)
         self.list_date_delta = None if self.list_date is None else max((datetime.now() - self.list_date).days, 0)
+        return
         
     def _clean_location(self) -> None:
         self.reference_info.update({
             'address' : self.raw_location.get('address', {}).get('line'),
             'zip_code' : self.raw_location.get('address', {}).get('postal_code'),
-            'state' : self.raw_location.get('address', {}).get('state'),
-            'state_code' : self.raw_location.get('address', {}).get('state_code'),
             'google_map_street_view' : self.raw_location.get('street_view_url'),
             'fips_code' : self.raw_location.get('county', {}).get('fips_code'),
             'county' : self.raw_location.get('county', {}).get('name'),
-            'city' : self.raw_location.get('address', {}).get('city'),
         })
+
+        self.city = (self.raw_location.get('address', {}).get('city', '') or '').upper()
+        self.state = (self.raw_location.get('address', {}).get('state_code', '') or '').upper()
 
         lat_long = self.raw_location.get('address', {}).get('coordinate')
         self.lat_long = (None, None) if lat_long in [None, {}] else (lat_long.get('lat'), lat_long.get('lon')) 
         self.address = self.reference_info['address'] + ' ' +\
-            self.reference_info['city'] + ' ' +\
-            self.reference_info['state_code'] + ' ' +\
+            self.city + ' ' +\
+            self.state + ' ' +\
             self.reference_info['zip_code']
+        return
     
 
     def _clean_description(self) -> None:
@@ -214,3 +213,4 @@ class House():
         self.stories = self.raw_description.get('stories') or 1
         self.beds = self.raw_description.get('beds') or 0
         self.type = self.raw_description.get('type') or 'NONE'
+        return

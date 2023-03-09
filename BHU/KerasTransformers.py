@@ -51,7 +51,6 @@ preprocess_tags_col = Pipeline(
     ]
 )
 
-# This needs to be winzorized, or else there are going to be just empty cells with no houses given an outlier.
 preprocess_bucketize_col = Pipeline(
     [
         ('bucketize', KBinsDiscretizer(n_bins=20, strategy='uniform'))
