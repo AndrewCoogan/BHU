@@ -3,12 +3,15 @@
 from BHU.House import House
 from BHU.GeoData import GeoData
 from BHU.API_Calls import *
-from BHU.WalkScoreModel import WalkScoreModel
 from typing import Tuple, List
 from math import radians, cos, sin, asin, sqrt, atan2
 from scipy.stats.mstats import winsorize
 from sklearn.impute import SimpleImputer
+from sklearn.ensemble import GradientBoostingRegressor
+import pandas as pd
 import numpy as np
+import pickle
+import os
 
 # This will take in house and geo, and generate stats based on what is fed, and then can output a dictionary that 
 # can easily be converted into a pd.Dataframe for the pipeline.
@@ -47,10 +50,66 @@ class FeatureGenerator():
         self.targets = list(map(self._generate_targets, self.houses))
         self.user_features = self._generate_features(self.user_home_formatted)
         self.user_target = self._generate_targets(self.user_home_formatted)
+        self.new_model : bool = False
+        self.walk_score_model = self._get_walk_score_model()
 
     def __repr__(self) -> str:
         return "This is a feature generator."
     
+    def _get_untrained_model(self) -> GradientBoostingRegressor:
+        return GradientBoostingRegressor(n_estimators=250, 
+                                        min_samples_split=3, 
+                                        min_samples_leaf=3, 
+                                        max_depth=8)
+    
+    def _format_data_for_walk_score(self) -> None:
+        lat = pd.Series([h.lat_long[0] for h in self.houses])
+        long = pd.Series([h.lat_long[1] for h in self.houses])
+        ws = pd.Series([h.walk_score for h in self.houses])
+
+        lat_mean_imputed = SimpleImputer().fit_transform(np.array(lat).reshape(-1,1))
+        long_mean_imputed = SimpleImputer().fit_transform(np.array(long).reshape(-1,1))
+        
+        self.lat_mean_imputed = [z[0] for z in lat_mean_imputed]
+        self.long_mean_imputed = [z[0] for z in long_mean_imputed]
+
+        if self.new_model:
+            # This means that we have the data from the API
+            walk_score_imputed = SimpleImputer().fit_transform(np.array(ws).reshape(-1,1))
+            self.walk_score_imputed = [z[0] for z in walk_score_imputed]
+        else:
+            self.walk_score_imputed = None
+
+        return
+    
+    def _get_walk_score_model(self) -> GradientBoostingRegressor:
+        model_name = f'{self.user_home_formatted.city}_{self.user_home_formatted.state}'
+        model_file_path = f'BHU/Saved Results/WalkScoreModel/{model_name}.pkl'
+    
+        if os.path.isfile(model_file_path):
+            with open(model_file_path, 'rb') as f:
+                model = pickle.load(f)
+            self.new_model = False
+            return model
+        
+        print(f'No model found, generating {model_name}.')
+        self._sync_walk_score()
+        self._format_data_for_walk_score()
+
+        model = self._get_untrained_model()
+        self.format_data_for_walk_score()
+        
+        data = pd.DataFrame({
+            'lat' : self.lat_mean_imputed, 
+            'long' : self.long_mean_imputed, 
+            'ws' : self.walk_score_imputed 
+        })
+
+        model.fit(data.drop('ws', axis=1), data['ws'])
+        with open(model_file_path, 'wb') as f:
+            pickle.dump(model, f)
+        return model
+
     def _clean_walk_score_value(self, score : int) -> int:
         try:
             score_min = max([score, 0])
@@ -81,9 +140,35 @@ class FeatureGenerator():
         user_ws = self._get_walk_score(self.user_home_formatted)
         self.user_home_formatted.walk_score = user_ws.get('walk_score') or 50
 
+        # If we end up expanding to transit or biking, here is where that happens
         for h in self.houses:
             ws = self._get_walk_score(h)
             h.walk_score = ws.get('walk_score') or 50
+
+        self.model = self._get_walk_score_model()
+
+        if self.new_model: 
+            # This means we have queried everything, walk score is populated and good
+            return
+        
+        self._format_data_for_walk_score()
+
+        # Walk score is not set here.
+        data = pd.DataFrame({
+            'lat':self.lat_mean_imputed, 
+            'long':self.long_mean_imputed
+        })
+
+        preds = self.model.predict(data)
+        for h, p in zip(self.houses, preds):
+            h.walk_score = p
+        return
+
+    def _get_walk_score_model(self):
+
+        lat_series = pd.Series([h.lat_long[0] for h in self.houses])
+        long_series = pd.Series([h.lat_long[1] for h in self.houses])
+        ws = pd.Series([h.walk_score for h in self.houses])
 
         return
 
@@ -171,6 +256,7 @@ class FeatureGenerator():
             'long_winz' : h.lat_long_winz[1],
             'lat' : h.lat_long[0],
             'long' : h.lat_long[1],
+            'walk_score' : h.walk_score
         }
         
         return h.features

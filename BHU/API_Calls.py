@@ -13,7 +13,7 @@ from typing import Literal, Tuple, List
 
 import keys as k
 
-RESULTS_PER_REQUEST_LIMIT = 42
+RESULTS_PER_REQUEST_LIMIT = 200
 USREALESTATE_API_HEADERS = {
     "X-RapidAPI-Key": k.getKeys()['USRealEstate'],
     "X-RapidAPI-Host": "us-real-estate.p.rapidapi.com"
@@ -276,8 +276,6 @@ def get_HousesOfInterest(
         raise Exception('User house does not have a valid property id.')
     
     # I am just going to go with city (for now)
-    # TODO: Future enhancement, be able to pass a ratio of zip code and city, but not sure given I measure distance later.
-
     listed_homes = get_Properties(
         parent_pid=parent_pid,
         market_status='for_sale',
