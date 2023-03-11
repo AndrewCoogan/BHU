@@ -118,14 +118,14 @@ class House():
         self.baths_3qtr = int(prop_common.get('bath_3qtr', 0) or 0)
         self.baths_half = int(prop_common.get('bath_half', 0) or 0)
         self.baths_1qtr = int(prop_common.get('bath_1qtr', 0) or 0)
-        self.year_built = prop_common.get('year_built')
-        self.lot_sqft = int(prop_common.get('lot_sqft', 0)) # We should impute, median?
-        self.sqft = int(prop_common.get('sqft', 0)) # We should impute, median?
-        self.garage = num_garage
+        self.year_built = int(prop_common.get('year_built') or 1950)
+        self.lot_sqft = int(prop_common.get('lot_sqft') or 0)
+        self.sqft = int(prop_common.get('sqft') or 0)
+        self.garage = num_garage or 0
         self.stories = public_records.get('stories', 1) or 1
-        self.beds = public_records.get('beds')
-        self.bath = prop_common.get('bath')
-        self.tags = property_details['search_tags']
+        self.beds = public_records.get('beds') or 1
+        self.bath = prop_common.get('bath') or 1
+        self.tags = property_details.get('search_tags') or []
         self.new_construction = False
         self.future_stats = {'distance_from_user_home' : 0}
         self.lat_long = (address.get('location', {}).get('lat', 0), address.get('location', {}).get('lon', 0))
@@ -182,8 +182,8 @@ class House():
         
     def _clean_location(self) -> None:
         self.reference_info.update({
-            'address' : self.raw_location.get('address', {}).get('line'),
-            'zip_code' : self.raw_location.get('address', {}).get('postal_code'),
+            'address' : self.raw_location.get('address', {}).get('line') or 'No Address Provided by API',
+            'zip_code' : self.raw_location.get('address', {}).get('postal_code') or '00000',
             'google_map_street_view' : self.raw_location.get('street_view_url'),
             'fips_code' : self.raw_location.get('county', {}).get('fips_code'),
             'county' : self.raw_location.get('county', {}).get('name'),

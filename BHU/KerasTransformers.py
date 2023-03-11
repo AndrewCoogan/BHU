@@ -53,6 +53,7 @@ preprocess_tags_col = Pipeline(
 
 preprocess_bucketize_col = Pipeline(
     [
-        ('bucketize', KBinsDiscretizer(n_bins=20, strategy='uniform'))
+        ('impute', SimpleImputer(missing_values=np.nan, strategy="mean")),
+        ('bucketize', KBinsDiscretizer(strategy='uniform'))
     ]
 )

@@ -32,10 +32,10 @@ class KerasModel(BaseEstimator, RegressorMixin):
 
         self.earlystopping = EarlyStopping(patience=5, verbose=1, min_delta=0.05)
 
-        if update_model and not self.load_model_if_available:
+        if update_model and not load_model_if_available:
             raise Exception('Can not update a model not loaded.')
 
-        self.model_name = f'{user_home.get("city")}_{user_home.get("state_code")}'
+        self.model_name = f'{user_home.get("city").upper()}_{user_home.get("state_code").upper()}'
 
     def _keras_model(self, n_cols):
         km = Sequential()

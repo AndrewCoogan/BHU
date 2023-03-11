@@ -46,59 +46,44 @@ class FeatureGenerator():
         self.houses = list(filter(self._remove_bad_listings, self.houses))
         self._generate_winsorized_coordinates()
 
+        # Walk Score
+        '''
+        I am having a hard time thinking about this.
+        The next few lines only populate a value that will be used as a feature.
+        I only return the walk_score_model here for auditing purposes.
+        '''
+        self.training : bool = True
+        self.walk_score_model = self._get_walk_score_model()
+
+        # If training is True: We have the real walk scores.
+        # If training is False: We need to predict the walk scores.
+        if not self.training:
+            self._predict_walk_scores()
+
         self.features = list(map(self._generate_features, self.houses))
         self.targets = list(map(self._generate_targets, self.houses))
         self.user_features = self._generate_features(self.user_home_formatted)
         self.user_target = self._generate_targets(self.user_home_formatted)
-        self.new_model : bool = False
-        self.walk_score_model = self._get_walk_score_model()
 
     def __repr__(self) -> str:
         return "This is a feature generator."
-    
-    def _get_untrained_model(self) -> GradientBoostingRegressor:
-        return GradientBoostingRegressor(n_estimators=250, 
-                                        min_samples_split=3, 
-                                        min_samples_leaf=3, 
-                                        max_depth=8)
-    
-    def _format_data_for_walk_score(self) -> None:
-        lat = pd.Series([h.lat_long[0] for h in self.houses])
-        long = pd.Series([h.lat_long[1] for h in self.houses])
-        ws = pd.Series([h.walk_score for h in self.houses])
-
-        lat_mean_imputed = SimpleImputer().fit_transform(np.array(lat).reshape(-1,1))
-        long_mean_imputed = SimpleImputer().fit_transform(np.array(long).reshape(-1,1))
-        
-        self.lat_mean_imputed = [z[0] for z in lat_mean_imputed]
-        self.long_mean_imputed = [z[0] for z in long_mean_imputed]
-
-        if self.new_model:
-            # This means that we have the data from the API
-            walk_score_imputed = SimpleImputer().fit_transform(np.array(ws).reshape(-1,1))
-            self.walk_score_imputed = [z[0] for z in walk_score_imputed]
-        else:
-            self.walk_score_imputed = None
-
-        return
     
     def _get_walk_score_model(self) -> GradientBoostingRegressor:
         model_name = f'{self.user_home_formatted.city}_{self.user_home_formatted.state}'
         model_file_path = f'BHU/Saved Results/WalkScoreModel/{model_name}.pkl'
     
         if os.path.isfile(model_file_path):
+            print(f'Loading {model_name} model.')
             with open(model_file_path, 'rb') as f:
                 model = pickle.load(f)
-            self.new_model = False
+            self.training = False
             return model
         
         print(f'No model found, generating {model_name}.')
-        self._sync_walk_score()
-        self._format_data_for_walk_score()
-
-        model = self._get_untrained_model()
-        self.format_data_for_walk_score()
-        
+        self._sync_walk_score() # Gets walk score for users and homes
+        self._format_data_for_walk_score_model() # Imputes and formats the data 
+        model = self._get_untrained_model() # Just returns a model
+                
         data = pd.DataFrame({
             'lat' : self.lat_mean_imputed, 
             'long' : self.long_mean_imputed, 
@@ -106,19 +91,43 @@ class FeatureGenerator():
         })
 
         model.fit(data.drop('ws', axis=1), data['ws'])
+
         with open(model_file_path, 'wb') as f:
             pickle.dump(model, f)
+            print(f'Model {model_name} generated and saved.')
+
         return model
+    
+    def _predict_walk_scores(self) -> None:
+        self._format_data_for_walk_score_model() # Imputes and formats the data 
 
-    def _clean_walk_score_value(self, score : int) -> int:
-        try:
-            score_min = max([score, 0])
-            score_max = min([score, 100])
-            clean_score = min([score_min, score_max])
-        except:
-            clean_score = np.nan
-        return clean_score
+        data = pd.DataFrame({
+            'lat' : self.lat_mean_imputed, 
+            'long' : self.long_mean_imputed
+        })
 
+        preds = self.walk_score_model.predict(data)
+
+        for h, p in zip(self.houses, preds):
+            h.walk_score = p
+
+        return
+
+    def _sync_walk_score(self) -> None:
+        # If I want to multithread, this is where we need to do it.
+        # If I do this, I am going to lose order, so maybe return the property id?
+
+        # I will always need to get the walkscore of the user.
+        user_ws = self._get_walk_score(self.user_home_formatted)
+        self.user_home_formatted.walk_score = user_ws.get('walk_score') or 50
+
+        # If we end up expanding to transit or biking, here is where that happens
+        for h in self.houses:
+            ws = self._get_walk_score(h)
+            h.walk_score = ws.get('walk_score') or 50
+
+        return
+    
     def _get_walk_score(self, h) -> House:
         # If this is tripped, we know we do not have a model, so generate it.
         walk_score_raw = get_WalkScore(
@@ -132,43 +141,37 @@ class FeatureGenerator():
             'transit_score' : self._clean_walk_score_value(walk_score_raw.get('transit', {}).get('score')),
             'bike_score' : self._clean_walk_score_value(walk_score_raw.get('bike', {}).get('score'))
         }
+    
+    def _clean_walk_score_value(self, score : int) -> int:
+        try:
+            score_min = max([score, 0])
+            score_max = min([score, 100])
+            clean_score = min([score_min, score_max])
+        except:
+            clean_score = np.nan
+        return clean_score
+    
+    def _get_untrained_model(self) -> GradientBoostingRegressor:
+        return GradientBoostingRegressor(n_estimators=250, 
+                                        min_samples_split=3, 
+                                        min_samples_leaf=3, 
+                                        max_depth=8)
+    
+    def _format_data_for_walk_score_model(self) -> None:
+        # This will format the data for the training set.
+        lat = pd.Series([h.lat_long[0] for h in self.houses])
+        long = pd.Series([h.lat_long[1] for h in self.houses])
 
-    def _sync_walk_score(self) -> None:
-        # If I want to multithread, this is where we need to do it.
-        # If I do this, I am going to lose order, so maybe return the property id?
-
-        user_ws = self._get_walk_score(self.user_home_formatted)
-        self.user_home_formatted.walk_score = user_ws.get('walk_score') or 50
-
-        # If we end up expanding to transit or biking, here is where that happens
-        for h in self.houses:
-            ws = self._get_walk_score(h)
-            h.walk_score = ws.get('walk_score') or 50
-
-        self.model = self._get_walk_score_model()
-
-        if self.new_model: 
-            # This means we have queried everything, walk score is populated and good
-            return
+        lat_mean_imputed = SimpleImputer().fit_transform(np.array(lat).reshape(-1,1))
+        long_mean_imputed = SimpleImputer().fit_transform(np.array(long).reshape(-1,1))
         
-        self._format_data_for_walk_score()
+        self.lat_mean_imputed = [z[0] for z in lat_mean_imputed]
+        self.long_mean_imputed = [z[0] for z in long_mean_imputed]
 
-        # Walk score is not set here.
-        data = pd.DataFrame({
-            'lat':self.lat_mean_imputed, 
-            'long':self.long_mean_imputed
-        })
-
-        preds = self.model.predict(data)
-        for h, p in zip(self.houses, preds):
-            h.walk_score = p
-        return
-
-    def _get_walk_score_model(self):
-
-        lat_series = pd.Series([h.lat_long[0] for h in self.houses])
-        long_series = pd.Series([h.lat_long[1] for h in self.houses])
-        ws = pd.Series([h.walk_score for h in self.houses])
+        if self.training:
+            ws = pd.Series([h.walk_score for h in self.houses])
+            walk_score_imputed = SimpleImputer().fit_transform(np.array(ws).reshape(-1,1))
+            self.walk_score_imputed = [z[0] for z in walk_score_imputed]
 
         return
 
