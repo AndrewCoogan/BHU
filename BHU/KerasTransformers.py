@@ -5,7 +5,7 @@ from itertools import chain
 
 from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import MinMaxScaler, KBinsDiscretizer
+from sklearn.preprocessing import MinMaxScaler, KBinsDiscretizer, StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.feature_extraction import DictVectorizer
 '''
@@ -41,6 +41,13 @@ preprocess_min_max_cols = Pipeline(
     [
         ('impute', SimpleImputer(missing_values=np.nan, strategy="mean")),
         ('min_max_scale', MinMaxScaler())
+    ]
+)
+
+preprocess_standard_scaler_cols = Pipeline(
+    [
+        ('impute', SimpleImputer(missing_values=np.nan, strategy="mean")),
+        ('min_max_scale', StandardScaler())
     ]
 )
 

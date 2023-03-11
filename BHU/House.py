@@ -27,6 +27,7 @@ class House():
         ):
 
         self.user_house : bool = user_house
+        self.user_home_stats : dict = {}
         self.walk_score = np.nan
 
         if user_house:
@@ -70,13 +71,45 @@ class House():
         return f'{self.reference_info["address"]}, {self.reference_info["city"]} {self.reference_info["state"]}'
         
     def _query_price_API(self, id : Tuple[int, str]) -> dict:
-        pv = get_PropertyValue(property_id = str(id[0]))
-        pv = pv.get('data', False)
+        property_value = get_PropertyValue(property_id = id)
 
-        if not pv:
-            return {}
-        return {}
-        ### I need to parse this.
+        try:        
+            estimate = pv['data']['current_values'][0]['estimate']
+        except:
+            estimate = None
+
+        # We are going to get this into a shape that will be rendered in Chart.js
+        output = {'estimate' : estimate}
+
+        for metric in ['historical_values', 'forecasted_values']:
+            values = property_value.get('data', {}).get(metric)
+            metric_dict = {}
+
+            if not values:
+                for source in values:
+                    data_source = source.get('source', {}).get('name') or 'UNKNOWN'
+                    metric_dict[data_source] = [
+                        (d.get('date') or '12-31-2000', d['estimate'] or 0) for d in source.get('estimates')
+                    ]
+
+            output.update({
+                metric : metric_dict
+            })
+
+        '''
+        This is going to be a big part of the Flask graphs, so want to be clear on what this is.
+        output = {
+            'estimate' = some number,
+            'historical_values' = dict {
+                    data_source_n = (date, value) for n in data_sources (usually three)
+            },
+            'forecasted_values' = dict {
+                    data_source_n = (date, value) for n in data_sources (usually three)
+            }
+        }
+        '''
+
+        return output
 
     def _convert_user_home(self, user_home) -> None:
         '''
@@ -87,6 +120,17 @@ class House():
 
         if property_details is None:
             raise Exception('User home data is empty.')
+        
+        user_home_id = property_details.get('forwarded_mpr_ids')
+        if isinstance(user_home_id, list):
+            user_home_id = user_home_id[0]
+
+        user_home_id_str = str(user_home_id)
+        
+        if user_home_id_str != 'None':
+            self.user_home_stats.update(
+                self._query_price_API(user_home_id_str)
+            )
 
         prop_common = property_details.get('prop_common', {})
         features = property_details.get('features',{})

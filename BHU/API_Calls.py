@@ -42,7 +42,7 @@ def get_LocationSuggest(
 @retry(stop_max_attempt_number=5)
 @checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='BHU/Saved Results/PropertyDetail/')
 def get_PropertyDetail(
-        property_id : str
+        property_id
     ) -> dict:
 
     url = "https://us-real-estate.p.rapidapi.com/v2/property-detail"
