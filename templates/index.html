@@ -12,6 +12,19 @@ Homepage
     </span>
 </h1>
 <p>
-    This is the homepage!
+    This is the homepage! This is where I should put a quick 'how to use'.
 </p>
+<form action="{{ url_for('main_page')}}" method="POST">
+    <!-- Address Input -->
+    <div class="mb-3 mt-3">
+        <label for="address" class="form-label">Address:</label>
+        <input type="text" class="form-control" id="address" placeholder="Enter Address" name="address" required>
+        <div class="valid-feedback">Seems Reasonable!</div>
+        <div class="invalid-feedback">BHU Needs an Address!</div>
+    </div>
+    <!-- Form submit button -->
+    <div class="d-grid">
+        <button class="btn btn-primary btn-lg"  name="submit_button" value="submit-address">Submit</button>
+    </div>
+</form>
 {% endblock %}

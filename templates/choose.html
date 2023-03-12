@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% from 'bootstrap5/table.html' import render_table %}
+
+{% block title %}
+Homepage
+{% endblock %}
+ 
+{% block content %}
+<h2>
+    Your query was a little ambiguous, can you please select from the below?
+</h2>
+<body>
+    {% for address in session.pop('addresses', []) %}
+        <li>{{ address }}</li>
+    {% endfor %}
+</body>
+{% endblock %}
