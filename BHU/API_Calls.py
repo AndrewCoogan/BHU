@@ -6,9 +6,6 @@ import string
 from urllib.parse import quote
 from retrying import retry
 from ediblepickle import checkpoint
-from beartype._decor.decormain import beartype
-from beartype.typing import Tuple
-
 from typing import Literal, Tuple, List
 
 import keys as k
@@ -19,7 +16,6 @@ USREALESTATE_API_HEADERS = {
     "X-RapidAPI-Host": "us-real-estate.p.rapidapi.com"
 }
 
-@beartype
 @retry(stop_max_attempt_number=5)
 @checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='BHU/Saved Results/LocationSuggest/')
 def get_LocationSuggest(
@@ -38,11 +34,10 @@ def get_LocationSuggest(
 
     return response_json if return_all else response_json['data'][0]
 
-@beartype
 @retry(stop_max_attempt_number=5)
 @checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='BHU/Saved Results/PropertyDetail/')
 def get_PropertyDetail(
-        property_id
+        property_id : str
     ) -> dict:
 
     url = "https://us-real-estate.p.rapidapi.com/v2/property-detail"
@@ -54,13 +49,11 @@ def get_PropertyDetail(
     response = requests.request("GET", url, headers=USREALESTATE_API_HEADERS, params=querystring)
     return response.json()
 
-@beartype
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='BHU/Saved Results/PropertyValue/')
+@checkpoint(key=string.Template('${property_id}.pkl'), work_dir='BHU/Saved Results/PropertyValue/')
 def get_PropertyValue(
         property_id : str
     ) -> dict:
-
     url = "https://us-real-estate.p.rapidapi.com/for-sale/home-estimate-value"
 
     querystring = {
@@ -156,7 +149,6 @@ def get_Properties(
         'geo' : geo_to_return
     }
 
-@beartype
 @retry(stop_max_attempt_number=5)
 @checkpoint(key=string.Template('${zzzparent_pid}_${zzzzipcode}_${zzzcity}_${zzzsort}.pkl'), \
     work_dir='BHU/Saved Results/Properties/')
@@ -212,7 +204,20 @@ def query_url(
 
     return geo_to_return, houses_to_return
 
-@beartype
+def _flask_get_UserHome(
+        user_input : str
+    ):
+
+    location_suggest = get_LocationSuggest(user_input, return_all=True)
+    locations = location_suggest.get('data')
+
+    if locations is None:
+        raise Exception('Nothing returned based on query.')
+
+    filtered_locations = [l for l in locations if l.get('_score', 0) > 20 and l.get('full_address') is not None]
+
+    return filtered_locations[0] if len(filtered_locations) == 1 else filtered_locations
+
 def get_UserHome(
         user_input : str
     ) -> dict[dict, dict]:
@@ -329,7 +334,6 @@ def get_HousesOfInterest(
 
     return listed_homes
 
-@beartype
 @retry(stop_max_attempt_number=5)
 @checkpoint(key=string.Template('${lat}_${lon}.pkl'), work_dir='BHU/Saved Results/WalkScore/')
 def get_WalkScore(

@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% from 'bootstrap5/form.html' import render_form, render_field %}
+
+{% block title %}
+Homepage
+{% endblock %}
+ 
+{% block content %}
+<h2>
+    Lets quickly make sure we agree on a few things. Are the below metrics accurate?
+</h2>
+<body>
+    {{ render_form(UserHomeForm, button_map={'submit': 'primary', 'cancel': 'danger'}) }}
+</body>
+{% endblock %}

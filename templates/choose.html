@@ -10,8 +10,14 @@ Homepage
     Your query was a little ambiguous, can you please select from the below?
 </h2>
 <body>
-    {% for address in session.pop('addresses', []) %}
-        <li>{{ address }}</li>
+<form action="{{ url_for('choose_address')}}" method="POST">
+    {% for address in session.get('addresses', []) %}
+        <input type="radio" name="options" id="{{address}}" value="{{address}}"> {{ address }} </input><br>
     {% endfor %}
+    <input type="radio" name="options" id="none" value="none">None Of The Above.</input><br>
+    <div class="d-grid">
+        <button class="btn btn-primary btn-lg"  name="submit_button" value="submit-address">Submit</button>
+    </div>
+</form>
 </body>
 {% endblock %}

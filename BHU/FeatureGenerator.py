@@ -40,6 +40,8 @@ class FeatureGenerator():
 
         # I need to convert user house to the right format.
         self.user_home_formatted = House(self.user_home, user_house = True)
+        user_ws = self._get_walk_score(self.user_home_formatted)
+        self.user_home_formatted.walk_score = user_ws.get('walk_score') or 50
 
         # I need to keep in mind here that this is a list of houses
         self.houses = list(map(self._generate_distance_between_coordinates, self.houses))
@@ -73,7 +75,7 @@ class FeatureGenerator():
         model_file_path = f'BHU/Saved Results/WalkScoreModel/{model_name}.pkl'
     
         if os.path.isfile(model_file_path):
-            print(f'Loading {model_name} model.')
+            print(f'Loading {model_name} walk score model.')
             with open(model_file_path, 'rb') as f:
                 model = pickle.load(f)
             self.training = False

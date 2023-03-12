@@ -1,13 +1,19 @@
 import pandas as pd
 import numpy as np
+
 from collections import Counter
 from itertools import chain
 
-from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import MinMaxScaler, KBinsDiscretizer, StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.base import TransformerMixin, BaseEstimator
+from sklearn.preprocessing import MinMaxScaler, KBinsDiscretizer, StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.feature_extraction import DictVectorizer
+
+from BHU.KerasModel import KerasModel
+from BHU.FeatureGenerator import FeatureGenerator
+
 '''
 Days Listed - Linear
 Days Updated - Linear
@@ -61,6 +67,34 @@ preprocess_tags_col = Pipeline(
 preprocess_bucketize_col = Pipeline(
     [
         ('impute', SimpleImputer(missing_values=np.nan, strategy="mean")),
-        ('bucketize', KBinsDiscretizer(strategy='uniform'))
+        ('bucketize', KBinsDiscretizer(n_bins=20, strategy='uniform'))
     ]
 )
+
+def generate_keras_pipeline(fg : FeatureGenerator):
+    target_transformer = StandardScaler()
+    targets = target_transformer.fit_transform(np.array(fg.targets).reshape(-1,1))
+
+    normalize_cols = ['lot_sqft', 'sqft']
+    bucketize_cols = ['year_built', 'distance_to_home', 'lat_winz', 'long_winz']
+    walk_score = ['walk_score']
+    dummy_cols = ['baths_full', 'baths_3qtr', 'baths_half', 'baths_1qtr', 'garage', 'stories', 'beds']
+
+    preprocess_data = ColumnTransformer(
+        [
+            ('normalize', StandardScaler(), normalize_cols),
+            ('bucketize', preprocess_bucketize_col, bucketize_cols),
+            ('dummy', OneHotEncoder(sparse_output=False, handle_unknown='ignore'), dummy_cols),
+            ('walkscore_mm', preprocess_min_max_cols, walk_score),
+            ('walkscore_ss', preprocess_standard_scaler_cols, walk_score)
+        ]
+    )
+
+    keras_pipeline = Pipeline(
+        [
+            ('to_data_frame', ToDataFrame()),
+            ('preprocess', preprocess_data),
+            ('keras_model', KerasModel(fg.user_home_formatted, target_transformer))
+        ]
+    )
+    return keras_pipeline, targets

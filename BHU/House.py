@@ -2,6 +2,7 @@
 from typing import Literal, Tuple
 from datetime import datetime
 import numpy as np
+from BHU.API_Calls import get_PropertyValue
 
 class House():
     '''
@@ -74,7 +75,7 @@ class House():
         property_value = get_PropertyValue(property_id = id)
 
         try:        
-            estimate = pv['data']['current_values'][0]['estimate']
+            estimate = property_value['data']['current_values'][0]['estimate']
         except:
             estimate = None
 
@@ -85,12 +86,14 @@ class House():
             values = property_value.get('data', {}).get(metric)
             metric_dict = {}
 
-            if not values:
+            if values:
                 for source in values:
                     data_source = source.get('source', {}).get('name') or 'UNKNOWN'
-                    metric_dict[data_source] = [
-                        (d.get('date') or '12-31-2000', d['estimate'] or 0) for d in source.get('estimates')
+                    ts = [
+                        (d.get('date') or '12-31-2000', d.get('estimate') or 0) for d in source.get('estimates') or []
                     ]
+                    if len(ts) >= 5:
+                        metric_dict[data_source] = ts
 
             output.update({
                 metric : metric_dict
@@ -126,11 +129,8 @@ class House():
             user_home_id = user_home_id[0]
 
         user_home_id_str = str(user_home_id)
-        
         if user_home_id_str != 'None':
-            self.user_home_stats.update(
-                self._query_price_API(user_home_id_str)
-            )
+            self.user_home_stats = self._query_price_API(user_home_id_str)
 
         prop_common = property_details.get('prop_common', {})
         features = property_details.get('features',{})
