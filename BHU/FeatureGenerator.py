@@ -257,8 +257,8 @@ class FeatureGenerator():
             'tags' : h.tags or [],
             'new_construction' : bool(h.new_construction),
             'distance_to_home' : h.future_stats.get('distance_from_user_home'),
-            'lat_winz' : h.lat_long_winz[0],
-            'long_winz' : h.lat_long_winz[1],
+            'lat_winz' : float(h.lat_long_winz[0]),
+            'long_winz' : float(h.lat_long_winz[1]),
             'lat' : h.lat_long[0],
             'long' : h.lat_long[1],
             'walk_score' : h.walk_score

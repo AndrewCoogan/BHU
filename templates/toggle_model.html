@@ -12,7 +12,9 @@ Homepage
 <form method="post">
     {{ render_form_row([UserHomeForm.beds, UserHomeForm.garage]) }}
     {{ render_form_row([UserHomeForm.full_baths, UserHomeForm.three_qtr_baths, UserHomeForm.half_baths, UserHomeForm.qtr_bath]) }}
-    {{ render_form_row([UserHomeForm.submit], button_map={'submit': 'primary'}) }}
+    {{ render_form_row([UserHomeForm.submit, UserHomeForm.reset, UserHomeForm.start_over], 
+        button_map={'submit': 'primary', 'reset': 'secondary', 'start_over': 'danger'}) }}
 </form>
+
 
 {% endblock %}

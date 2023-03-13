@@ -1,3 +1,4 @@
+#type:ignore
 from flask import Flask, render_template, request, url_for, redirect, session, flash
 from flask_wtf import FlaskForm
 from wtforms.fields import IntegerField, SubmitField, RadioField, DecimalField
@@ -6,8 +7,7 @@ import secrets
 import os
 
 from BHU.API_Calls import _flask_get_UserHome
-from BHU import get_HousesOfInterest, get_PropertyDetail
-from BHU import GeoData, FeatureGenerator
+from BHU import get_PropertyDetail
 from BHU.KerasModelToggle import KerasModelToggle
 from BHU.KerasTransformers import generate_keras_pipeline
 
@@ -32,16 +32,7 @@ On the main page--list caveats: single family, etc.
 Bottom of Attributes, or the toggle page, pictures of the house, links should be around.
 '''
 
-def generate_initial_user_parameters(features, price_from_API):
-    class DollarField(DecimalField):
-        def process_formdata(self, valuelist):
-            if len(valuelist) == 1:
-                self.data = [valuelist[0].strip('$').replace(',', '')]
-            else:
-                self.data = []
-
-            super(DollarField).process_formdata(self.data)
-
+def generate_user_parameters(features, price_from_API = 0):
     class UserHomeForm(FlaskForm):
         year_built = IntegerField("Year Built")
         sqft = IntegerField("Square Footage")
@@ -56,6 +47,7 @@ def generate_initial_user_parameters(features, price_from_API):
         price = IntegerField("Price")
         submit = SubmitField()
         cancel = SubmitField()
+        start_over = SubmitField("Start Over?")
 
     uhf = UserHomeForm()
     uhf.year_built.default = features.get('year_built') or 0
@@ -72,8 +64,8 @@ def generate_initial_user_parameters(features, price_from_API):
     uhf.process()
     return uhf
 
-def get_keras_model(fg):
-    keras_pipeline, target_transformed = generate_keras_pipeline(fg)
+def get_keras_model(fg__targets, fg__features, fg__model_name):
+    keras_pipeline, target_transformed = generate_keras_pipeline(fg__targets, fg__model_name)
 
     keras_pipeline.set_params(**{
         'keras_model__load_model_if_available' : True,
@@ -81,7 +73,7 @@ def get_keras_model(fg):
         'keras_model__save_model' : False
     })
 
-    keras_pipeline.fit(fg.features, target_transformed)
+    keras_pipeline.fit(fg__features, target_transformed)
     return keras_pipeline
 
 @app.route('/', methods=['GET', 'POST'])
@@ -117,6 +109,7 @@ def choose_address():
                 flash(f'Unfortunately, there is no working model currently available for {city}, {state}.', 'warning')
                 return redirect(url_for('main_page'))
             # If yes, lets load the models and proceed.
+            session['model_name'] = f'{city.upper()}_{state.upper()}'
             return redirect(url_for('verify_address_attributes'))
     return render_template('choose.html')
 
@@ -124,30 +117,39 @@ def choose_address():
 def verify_address_attributes():
     if request.method == 'GET':
         user_home_details = get_PropertyDetail(session.get('user_home', {}).get('property_id'))
-        hoi = get_HousesOfInterest(session.get('user_home'), n=2000, listed_to_sold_ratio=0.3, verbose=True)
-        gd = GeoData(hoi['geo'])
-        fg = FeatureGenerator(houses = hoi['houses'], gd=gd, user_home=user_home_details)
-        session['fg'] = fg # This is now immutable (I think???)
-        user_form = generate_initial_user_parameters(fg.user_features, fg.user_home_formatted.price)
-        # I should do price here as well.
+        user_form = generate_user_parameters(fg.user_features, fg.user_home_formatted.price)
+        # What do I need from feature generator?
+
+        # session['fg__user_home_formatted'] = fg.user_home_formatted
+        # ^^^ does not work because House is non-serializable
+        # We will need .price, .address, cool, not so bad.
+        session['fg__user_features'] = fg.user_features
+        session['fg__user_home_formatted__price'] = fg.user_home_formatted.price
+        session['fg__user_home_formatted__address'] = fg.user_home_formatted.address
+        session['fg__features'] = fg.features
+        session['fg__targets'] = fg.targets
         return render_template('attributes.html', UserHomeForm = user_form)
     elif request.method == 'POST':
         # Here we need to read in the users values and update them. We should assume we need to update them all.
-        if request.form.get('submit') or '' == 'Submit':
+        if request.form.get('submit') == 'Submit':
             # I need to pull in all of the info from the web form.
-            fg = session.pop('fg', None)
-            fg.user_features.year_built = request.form.get('year_built') or 0
-            fg.user_features.sqft = request.form.get('sqft') or 0
-            fg.user_features.lot_sqft = request.form.get('lot_sqft') or 0
-            fg.user_features.beds = request.form.get('beds') or 1
-            fg.user_features.full_baths = request.form.get('baths_full') or 0
-            fg.user_features.three_qtr_baths = request.form.get('baths_3qtr') or 0
-            fg.user_features.half_baths = request.form.get('baths_half') or 0
-            fg.user_features.qtr_bath = request.form.get('baths_1qtr') or 0
-            fg.user_features.garage = 'yes' if request.form.get('garage') or 0 > 0 else 'no'
-            fg.user_features.new_construction = 'yes' if request.form.get('new_construction') else 'no'
-            fg.user_target = request.form.get('price') or fg.user_home_formatted.price
-            session['fg'] = fg
+            user_features = session.pop('fg__user_features', None)
+            user_features['year_built'] = request.form.get('year_built') or 0
+            user_features['sqft'] = request.form.get('sqft') or 0
+            user_features['lot_sqft'] = request.form.get('lot_sqft') or 0
+            user_features['beds'] = request.form.get('beds') or 1
+            user_features['full_baths'] = request.form.get('baths_full') or 0
+            user_features['three_qtr_baths'] = request.form.get('baths_3qtr') or 0
+            user_features['half_baths'] = request.form.get('baths_half') or 0
+            user_features['qtr_bath'] = request.form.get('baths_1qtr') or 0
+            user_features['garage'] = True if request.form.get('garage') or 0 > 0 else False
+            user_features['new_construction'] = True if request.form.get('new_construction') else False
+            session['fg__user_features'] = user_features
+            print(session)
+            if 'user_provided_price' not in session:
+                session['user_provided_price'] = \
+                    request.form.get('price') or session.get('fg__user_home_formatted').price or 0
+                # This is just an over engineered way of waterfalling to make sure we get a price.
             return redirect(url_for('toggle_model'))
         return redirect(url_for('main_page'))
     flash(f'Something horribly wrong happened, sending you back to a safe place.', 'warning')
@@ -158,27 +160,39 @@ def toggle_model():
     if request.method == "GET":
         # This is showing the user the options.
         if 'keras_model' not in session:
-            session['keras_model'] = generate_keras_pipeline(session['fg'])
+            session['keras_model'] = generate_keras_pipeline(
+                fg__targets = session.get('fg__targets'), 
+                fg__features = session.get('fg__features'), 
+                fg__model_name = session.get('model_name', 'ERROR_ERROR')
+            )
 
+        # This needs to be able to change.
         if 'kmt' in session:
             kmt = session.pop('kmt', None)
         else:
-            kmt = KerasModelToggle(model=session['keras_model'], fg=session['fg'])
+            kmt = KerasModelToggle(model=session['keras_model'],
+                                    user_features=session['fg__user_features'],
+                                    user_price=session['user_provided_price'],
+                                    user_home_formatted=session['fg__user_home_formatted'])
 
-        toggle = {}
-        toggle['beds'] = request.form.get('beds') or kmt.fg.user_features.get('beds')
-        toggle['baths_full'] = request.form.get('baths_full') or kmt.fg.user_features.get('baths_full')
-        toggle['three_qtr_baths'] = request.form.get('baths_3qtr') or kmt.fg.user_features.get('baths_full')
-        toggle['half_baths'] = request.form.get('baths_half') or kmt.fg.user_features.get('baths_full')
-        toggle['qtr_bath'] = request.form.get('baths_1qtr') or kmt.fg.user_features.get('baths_full')
-        toggle['garage'] = 'yes' if request.form.get('garage') or 0 > 0 else 'no'
-        kmt.modify_attributes(**toggle)
-
-        
-
-        return render_template('attributes.html', UserHomeForm = user_form)
+        # At this point, the first run, user_features_mod is just the user defined stuff.
+        user_form = generate_user_parameters(kmt.user_features_mod)
+        return render_template('toggle_model.html', UserHomeForm = user_form)
     if request.method == "POST":
-        # This is where we set up a new session['user_model']
+        # The user has submitted a new optimization.
+        if request.form.get('submit') or '' == 'Submit':
+            toggle = {}
+            toggle['beds'] = request.form.get('beds') or kmt.fg.user_features.get('beds')
+            toggle['baths_full'] = request.form.get('baths_full') or kmt.fg.user_features.get('baths_full')
+            toggle['three_qtr_baths'] = request.form.get('baths_3qtr') or kmt.fg.user_features.get('baths_full')
+            toggle['half_baths'] = request.form.get('baths_half') or kmt.fg.user_features.get('baths_full')
+            toggle['qtr_bath'] = request.form.get('baths_1qtr') or kmt.fg.user_features.get('baths_full')
+            toggle['garage'] = True if request.form.get('garage') or 0 > 0 else False
+            kmt.modify_attributes(**toggle)
+
+            print('wow, made it here.')
+            print(kmt.get_current_user_house_attributes())
+            print(kmt.get_proposed_user_house_attributes())
 
     pass
 

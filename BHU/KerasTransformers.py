@@ -12,7 +12,6 @@ from sklearn.impute import SimpleImputer
 from sklearn.feature_extraction import DictVectorizer
 
 from BHU.KerasModel import KerasModel
-from BHU.FeatureGenerator import FeatureGenerator
 
 '''
 Days Listed - Linear
@@ -71,9 +70,9 @@ preprocess_bucketize_col = Pipeline(
     ]
 )
 
-def generate_keras_pipeline(fg : FeatureGenerator):
+def generate_keras_pipeline(fg__model_name):
     target_transformer = StandardScaler()
-    targets = target_transformer.fit_transform(np.array(fg.targets).reshape(-1,1))
+    targets = target_transformer.fit_transform(np.array(fg__targets).reshape(-1,1))
 
     normalize_cols = ['lot_sqft', 'sqft']
     bucketize_cols = ['year_built', 'distance_to_home', 'lat_winz', 'long_winz']
@@ -94,7 +93,8 @@ def generate_keras_pipeline(fg : FeatureGenerator):
         [
             ('to_data_frame', ToDataFrame()),
             ('preprocess', preprocess_data),
-            ('keras_model', KerasModel(fg.user_home_formatted, target_transformer))
+            ('keras_model', KerasModel(fg__model_name, target_transformer))
         ]
     )
     return keras_pipeline, targets
+

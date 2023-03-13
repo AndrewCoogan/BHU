@@ -20,13 +20,13 @@ class KerasModel(BaseEstimator, RegressorMixin):
     element of the Pipeline, which could be sick for later applications.
     '''
     def __init__(self, 
-                 user_home,
-                 target_transformer,
+                 model_name,
+                 target_transformer = None,
                  load_model_if_available : bool = True, 
                  update_model : bool = False, 
                  save_model : bool = False):
         # Interesting note, this instance is created before paramters are passed into the step of the pipeline.
-        self.user_home = user_home
+        self.model_name = model_name
         self.target_transformer = target_transformer
         self.load_model_if_available = load_model_if_available
         self.update_model = update_model
@@ -36,8 +36,6 @@ class KerasModel(BaseEstimator, RegressorMixin):
 
         if update_model and not load_model_if_available:
             raise Exception('Can not update a model not loaded.')
-
-        self.model_name = f'{user_home.city}_{user_home.state}'
 
     def _keras_model(self, n_cols):
         km = Sequential()
@@ -54,7 +52,7 @@ class KerasModel(BaseEstimator, RegressorMixin):
                 self.model = self._keras_model(n_cols=X.shape[1])
             self.model.fit(X, y, epochs=100, batch_size = 50, callbacks = self.earlystopping)
 
-    def fit(self, X, y=None):
+    def fit(self, X=None, y=None):
         model_file_path = f'BHU/Saved Results/KerasModel/{self.model_name}.pkl'
 
         if self.load_model_if_available:
@@ -65,6 +63,7 @@ class KerasModel(BaseEstimator, RegressorMixin):
                     self._generate_model(X, y)
             else:
                 print(f'No model found, generating {self.model_name}.')
+                raise Exception('This is not going to generate any new models. (Yet)')
                 self._generate_model(X, y)
         else:
             self._generate_model(X, y)

@@ -4,26 +4,34 @@ from sklearn.pipeline import Pipeline
 class KerasModelToggle():
     def __init__(self, 
                  model : Pipeline, 
-                 fg : FeatureGenerator,
+                 user_features,
+                 user_price,
+                 address
                  ):
         self.model = model
-        self.fg = fg
+        self.fg__user_features = user_features
+        self.fg__user_price = user_price
+        self.fg__user_home_formatted__address = address
 
-        self.model_predicted_user_price = model.predict(self.fg.user_features)[0][0]
-        self.user_price = self.fg.user_target
-        self.predicted_new_value = self.fg.user_target
+        '''
+        This needs to be changed into taking parameters that are serializeable, ie not FeatureGenerator
+        '''
+
+        self.model_predicted_user_price = self.model.predict(self.fg__user_price)[0][0]
+        self.user_price = self.fg__user_price
+        self.predicted_new_value = self.fg__user_price
         self.price_ratio = self.user_price / self.model_predicted_user_price
-        self.user_features_mod = self.fg.user_features.copy()
-        self._attributes = self.fg.user_features.keys()
+        self.user_features_mod = self.fg__user_features.copy()
+        self._attributes = self.fg__user_features.keys()
 
     def __repr__(self):
-        return f'This is a pricing model for {self.fg.user_home_formatted.address}.'
+        return f'This is a pricing model for {self.fg__user_home_formatted__address.address}.'
     
     def get_current_user_house_attributes(self):
         '''
         This returns a copy of the user_features dictionary that feeds the NN
         '''
-        return self.fg.user_features.copy()
+        return self.fg__user_features.copy()
     
     def get_proposed_user_house_attributes(self):
         '''
@@ -35,13 +43,10 @@ class KerasModelToggle():
         '''
         This just resets the user mod to the original state.
         '''
-        self.user_features_mod = self.fg.user_features
+        self.user_features_mod = self.fg__user_features
     
     def modify_attributes(self, **kwargs):
         '''
-        Expected input is going to be in the shape {attribute : +/- 1}
-        So the attribute will need to match up with the key of the model input
-
         THOUGHT: This might be easier if we do it as a value (2 or 3 half bath)
         entry rather that an iteration (ie +/-1)
         This should be easy to change though.
