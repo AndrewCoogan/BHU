@@ -4,13 +4,14 @@ from sklearn.pipeline import Pipeline
 class KerasModelToggle():
     def __init__(self, 
                  model : Pipeline, 
-                 fg : FeatureGenerator):
+                 fg : FeatureGenerator,
+                 ):
         self.model = model
         self.fg = fg
 
-        self.model_predicted_user_price = model.predict(fg.user_features)[0][0]
-        self.user_price = fg.user_target
-        self.predicted_new_value = fg.user_target
+        self.model_predicted_user_price = model.predict(self.fg.user_features)[0][0]
+        self.user_price = self.fg.user_target
+        self.predicted_new_value = self.fg.user_target
         self.price_ratio = self.user_price / self.model_predicted_user_price
         self.user_features_mod = self.fg.user_features.copy()
         self._attributes = self.fg.user_features.keys()
@@ -30,6 +31,12 @@ class KerasModelToggle():
         '''
         return self.user_features_mod.copy()
     
+    def reset_user_mod(self):
+        '''
+        This just resets the user mod to the original state.
+        '''
+        self.user_features_mod = self.fg.user_features
+    
     def modify_attributes(self, **kwargs):
         '''
         Expected input is going to be in the shape {attribute : +/- 1}
@@ -41,9 +48,9 @@ class KerasModelToggle():
         '''
         for k, v in kwargs.items():
             if k in self._attributes:
-                self.user_features_mod[k] += v
-                continue
-            print(f'{k} is not a valid item to change.')
+                self.user_features_mod[k] = v
+            else:
+                print(f'{k} is not a valid item to change.')
 
     def predit_new_value(self) -> dict:
         '''

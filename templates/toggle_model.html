@@ -7,13 +7,12 @@ Homepage
  
 {% block content %}
 <h2>
-    Lets quickly make sure we agree on a few things. Are the below metrics generally accurate?
+    What would you like to change about your house?
 </h2>
 <form method="post">
-    {{ render_form_row([UserHomeForm.sqft, UserHomeForm.lot_sqft, UserHomeForm.beds, UserHomeForm.price]) }}
+    {{ render_form_row([UserHomeForm.beds, UserHomeForm.garage]) }}
     {{ render_form_row([UserHomeForm.full_baths, UserHomeForm.three_qtr_baths, UserHomeForm.half_baths, UserHomeForm.qtr_bath]) }}
-    {{ render_form_row([UserHomeForm.year_built, UserHomeForm.garage, UserHomeForm.new_construction]) }}
     {{ render_form_row([UserHomeForm.submit], button_map={'submit': 'primary'}) }}
-    {{ render_form_row([UserHomeForm.cancel], button_map={'cancel': 'danger'}) }}
 </form>
+
 {% endblock %}
