@@ -1,14 +1,15 @@
 #ignore:type
 from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.preprocessing import StandardScaler
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.callbacks import EarlyStopping
 from scikeras.wrappers import KerasRegressor
 
 import pickle
+import pandas as pd
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
-
 
 class KerasModel(BaseEstimator, RegressorMixin):
     '''
@@ -19,18 +20,24 @@ class KerasModel(BaseEstimator, RegressorMixin):
     whatever you are GridSearching. As I write this, alhtough I did not do this, I could have grid searched on any
     element of the Pipeline, which could be sick for later applications.
     '''
+
+    '''
+    THIS IS BEING CHANGED QUITE A BIT TO GET IT TO WORK IN FLASK.
+    I WILL NEED TO REFACTOR A GOOD CHUNK OF THIS TRIMMING FAT FOR TRAINING ON THE FLY.
+    THIS WILL BE REWRITTEN TO ASSUME INPUTS ARE A PRETRAINED. I WILL NEED TO RETHINK HOW TO APPROACH TRAINING.
+    '''
     def __init__(self, 
-                 model_name,
-                 target_transformer = None,
+                 model_name : str,
+                 target_transformer,
                  load_model_if_available : bool = True, 
                  update_model : bool = False, 
                  save_model : bool = False):
         # Interesting note, this instance is created before paramters are passed into the step of the pipeline.
         self.model_name = model_name
-        self.target_transformer = target_transformer
         self.load_model_if_available = load_model_if_available
         self.update_model = update_model
         self.save_model = save_model
+        self.target_transformer = target_transformer
 
         self.earlystopping = EarlyStopping(patience=5, verbose=1, min_delta=0.05)
 
@@ -55,6 +62,14 @@ class KerasModel(BaseEstimator, RegressorMixin):
     def fit(self, X=None, y=None):
         model_file_path = f'BHU/Saved Results/KerasModel/{self.model_name}.pkl'
 
+        if X is None and y is None:
+            if os.path.isfile(model_file_path):
+                with open(model_file_path, 'rb') as f:
+                    self.model = pickle.load(f)
+                return self
+            else:
+                raise Exception('This is not going to generate any new models. (Yet)')
+
         if self.load_model_if_available:
             if os.path.isfile(model_file_path):
                 with open(model_file_path, 'rb') as f:
@@ -75,4 +90,5 @@ class KerasModel(BaseEstimator, RegressorMixin):
         return self
 
     def predict(self, X):
+        # target_transformer = Scaler().load_model(model_name=self.model_name)
         return self.target_transformer.inverse_transform(self.model.predict(X))

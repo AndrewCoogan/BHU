@@ -1,7 +1,6 @@
 #type:ignore
 
 from BHU.House import House
-from BHU.GeoData import GeoData
 from BHU.API_Calls import *
 from typing import Tuple, List
 from math import radians, cos, sin, asin, sqrt, atan2
@@ -18,7 +17,6 @@ import os
 class FeatureGenerator():
     def __init__(self, 
         houses    : List[dict], 
-        gd        : GeoData,
         user_home : dict
         ):
 
@@ -35,7 +33,6 @@ class FeatureGenerator():
                 self._unique_property_ids.append(h['property_id'])
                 self.houses.append(House(h))
 
-        self.gd = gd
         self.user_home = user_home
 
         # I need to convert user house to the right format.

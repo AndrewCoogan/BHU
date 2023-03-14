@@ -7,11 +7,12 @@ from itertools import chain
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.base import TransformerMixin, BaseEstimator
-from sklearn.preprocessing import MinMaxScaler, KBinsDiscretizer, StandardScaler, OneHotEncoder
+from sklearn.preprocessing import MinMaxScaler, KBinsDiscretizer, OneHotEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.feature_extraction import DictVectorizer
 
 from BHU.KerasModel import KerasModel
+from joblib import load
 
 '''
 Days Listed - Linear
@@ -70,10 +71,7 @@ preprocess_bucketize_col = Pipeline(
     ]
 )
 
-def generate_keras_pipeline(fg__model_name):
-    target_transformer = StandardScaler()
-    targets = target_transformer.fit_transform(np.array(fg__targets).reshape(-1,1))
-
+def generate_keras_pipeline(model_name, scaler):
     normalize_cols = ['lot_sqft', 'sqft']
     bucketize_cols = ['year_built', 'distance_to_home', 'lat_winz', 'long_winz']
     walk_score = ['walk_score']
@@ -93,8 +91,25 @@ def generate_keras_pipeline(fg__model_name):
         [
             ('to_data_frame', ToDataFrame()),
             ('preprocess', preprocess_data),
-            ('keras_model', KerasModel(fg__model_name, target_transformer))
+            ('keras_model', KerasModel(model_name, scaler))
         ]
     )
-    return keras_pipeline, targets
+    return keras_pipeline
 
+def get_keras_model_from_file(model_name, load_from_file, X = None, y = None):
+    if load_from_file:
+        return 
+    
+    keras_pipeline = generate_keras_pipeline(model_name, None)
+
+    # This is the same as the default parameters.
+    keras_pipeline.set_params(**{
+        'keras_model__load_model_if_available' : True,
+        'keras_model__update_model' : False,
+        'keras_model__save_model' : False
+    })
+
+    return keras_pipeline.fit(X, y)
+
+def get_keras_pipeline_from_file(model_name):
+    return load(f'BHU/Saved Results/Pipeline/{model_name}.joblib')

@@ -11,9 +11,8 @@ Homepage
 </h2>
 <form method="post">
     {{ render_form_row([UserHomeForm.sqft, UserHomeForm.lot_sqft, UserHomeForm.beds, UserHomeForm.price]) }}
-    {{ render_form_row([UserHomeForm.full_baths, UserHomeForm.three_qtr_baths, UserHomeForm.half_baths, UserHomeForm.qtr_bath]) }}
+    {{ render_form_row([UserHomeForm.baths_full, UserHomeForm.baths_3qtr, UserHomeForm.half_baths, UserHomeForm.baths_1qtr]) }}
     {{ render_form_row([UserHomeForm.year_built, UserHomeForm.garage, UserHomeForm.new_construction]) }}
-    {{ render_form_row([UserHomeForm.submit], button_map={'submit': 'primary'}) }}
-    {{ render_form_row([UserHomeForm.cancel], button_map={'cancel': 'danger'}) }}
+    {{ render_form(ButtonForm, button_map={'submit': 'primary', 'cancel': 'danger'}) }}
 </form>
 {% endblock %}

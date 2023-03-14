@@ -2,7 +2,7 @@
 from typing import Literal, Tuple
 from datetime import datetime
 import numpy as np
-from BHU.API_Calls import get_PropertyValue
+from BHU.API_Calls import get_PropertyValue, get_WalkScore
 
 class House():
     '''
@@ -185,7 +185,9 @@ class House():
 
         self.city = neighborhoods['city'].upper()
         self.state = neighborhoods['state_code'].upper()
-        #self.neighborhoods = neighborhoods.get('name', '').upper()
+
+        walk_scores = self._get_user_walksore()
+        self.walk_score = walk_scores.get('walk_score', np.nan)
 
         total_baths = self.baths_full + \
             0.75*self.baths_3qtr + \
@@ -209,7 +211,6 @@ class House():
                 missing -= 0.5 * n_half
             if missing >= 0.25:
                 self.baths_1qtr += missing // 0.25
-
         return
     
     def _convert_date(self, date : str) -> datetime:
@@ -258,3 +259,62 @@ class House():
         self.beds = self.raw_description.get('beds') or 0
         self.type = self.raw_description.get('type') or 'NONE'
         return
+    
+
+    def _get_user_walksore(self) -> float:
+        walk_score_raw = get_WalkScore(
+            address=f'{self.city} {self.state}',
+            lat=self.lat_long[0],
+            lon=self.lat_long[1]
+        )
+
+        def _clean_walk_score_value(score : int) -> int:
+            try:
+                score_min = max([score, 0])
+                score_max = min([score, 100])
+                clean_score = min([score_min, score_max])
+            except:
+                clean_score = np.nan
+            return clean_score
+
+        return {
+            'walk_score' : _clean_walk_score_value(walk_score_raw.get('walkscore')),
+            'transit_score' : _clean_walk_score_value(walk_score_raw.get('transit', {}).get('score')),
+            'bike_score' : _clean_walk_score_value(walk_score_raw.get('bike', {}).get('score'))
+        }
+    
+    def user_house_features(self) -> dict:
+        self.features = {}
+        if not self.user_house:
+            return self.features
+        
+        self.features = {
+            'Property_ID' : self.reference_info.get('id'),
+            'Address' : self.address,
+            'Status' : self.status,
+            'Days_listed' : 0,
+            'Days_updated' : 0,
+            'baths_full' : int(self.baths_full),
+            'baths_3qtr' : int(self.baths_3qtr),
+            'baths_half' : int(self.baths_half),
+            'baths_1qtr' : int(self.baths_1qtr),
+            'year_built' : int(self.year_built),
+            'lot_sqft' : int(self.lot_sqft),
+            'sqft' : int(self.sqft),
+            'garage' : int(self.garage),
+            'stories' : int(self.stories),
+            'beds' : int(self.beds),
+            'tags' : self.tags or [],
+            'new_construction' : bool(self.new_construction),
+            'distance_to_home' : 0,
+            'lat_winz' : self.lat_long[0], # Assuming the user house is not an outlier.
+            'long_winz' : self.lat_long[1], # Assuming the user house is not an outlier.
+            'lat' : self.lat_long[0],
+            'long' : self.lat_long[1],
+            'walk_score' : self.walk_score
+        }
+        
+        return self.features
+    
+    def house_price(self) -> int:
+        return int(self.price or 0)

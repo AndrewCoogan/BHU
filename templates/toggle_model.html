@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% from 'bootstrap5/form.html' import render_form, render_field, render_form_row %}
+{% from 'bootstrap5/table.html' import render_table %}
 
 {% block title %}
 Homepage
@@ -8,13 +9,13 @@ Homepage
 {% block content %}
 <h2>
     What would you like to change about your house?
+    Provided price = ${{ user_provided_price }}
 </h2>
 <form method="post">
     {{ render_form_row([UserHomeForm.beds, UserHomeForm.garage]) }}
-    {{ render_form_row([UserHomeForm.full_baths, UserHomeForm.three_qtr_baths, UserHomeForm.half_baths, UserHomeForm.qtr_bath]) }}
-    {{ render_form_row([UserHomeForm.submit, UserHomeForm.reset, UserHomeForm.start_over], 
-        button_map={'submit': 'primary', 'reset': 'secondary', 'start_over': 'danger'}) }}
+    {{ render_form_row([UserHomeForm.baths_full, UserHomeForm.baths_3qtr, UserHomeForm.half_baths, UserHomeForm.baths_1qtr]) }}
+    {{ render_table(New_House_Stats, Titles) }}
+    {{ render_form(ButtonForm, button_map={'submit': 'primary', 'cancel': 'danger', 'reset': 'secondary'}) }}
 </form>
-
 
 {% endblock %}
