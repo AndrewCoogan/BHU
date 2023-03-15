@@ -1,5 +1,5 @@
 #type:ignore
-from flask import Flask, render_template, request, url_for, redirect, session, flash
+from flask import render_template, request, url_for, redirect, session, flash
 from flask_wtf import FlaskForm
 from wtforms.fields import IntegerField, SubmitField, RadioField, DecimalField, TextAreaField
 from flask_bootstrap import Bootstrap5
@@ -9,6 +9,10 @@ from BHU import get_PropertyDetail, House
 from BHU.KerasModelToggle import KerasModelToggle, format_number_as_dollar
 from BHU.API_Calls import _flask_get_UserHome
 from BHU.KerasTransformers import get_keras_pipeline_from_file
+
+from BHU import create_app
+
+app = create_app()
 
 bootstrap = Bootstrap5(app)
 
