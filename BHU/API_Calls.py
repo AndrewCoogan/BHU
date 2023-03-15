@@ -9,15 +9,22 @@ from ediblepickle import checkpoint
 from typing import Literal, Tuple, List
 
 import os
+prod = True
+if prod:
+    us_real_estate_key = os.environ['USRealEstate']
+    walk_score_api_key = os.environ['WalkscoreKey']
+else:
+    import keys as k
+    us_real_estate_key = k.getKeys()['USRealEstate']
+    walk_score_api_key = k.getKeys()['WalkscoreKey']
 
 RESULTS_PER_REQUEST_LIMIT = 200
 USREALESTATE_API_HEADERS = {
-    "X-RapidAPI-Key": os.environ['USRealEstate'],
+    "X-RapidAPI-Key": us_real_estate_key,
     "X-RapidAPI-Host": "us-real-estate.p.rapidapi.com"
 }
 
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='BHU/Saved Results/LocationSuggest/')
 def get_LocationSuggest(
         search_keyword : str, 
         return_all     : bool = False
@@ -35,7 +42,6 @@ def get_LocationSuggest(
     return response_json if return_all else response_json['data'][0]
 
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='BHU/Saved Results/PropertyDetail/')
 def get_PropertyDetail(
         property_id : str
     ) -> dict:
@@ -50,7 +56,6 @@ def get_PropertyDetail(
     return response.json()
 
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=string.Template('${property_id}.pkl'), work_dir='BHU/Saved Results/PropertyValue/')
 def get_PropertyValue(
         property_id : str
     ) -> dict:
@@ -150,8 +155,6 @@ def get_Properties(
     }
 
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=string.Template('${zzzparent_pid}_${zzzzipcode}_${zzzcity}_${zzzsort}.pkl'), \
-    work_dir='BHU/Saved Results/Properties/')
 def query_url(
         n_results : int, 
         verbose : bool, 
@@ -335,7 +338,6 @@ def get_HousesOfInterest(
     return listed_homes
 
 @retry(stop_max_attempt_number=5)
-@checkpoint(key=string.Template('${lat}_${lon}.pkl'), work_dir='BHU/Saved Results/WalkScore/')
 def get_WalkScore(
     address : str,
     lat : float,
@@ -349,7 +351,7 @@ def get_WalkScore(
         "lon":lon,
         "transit":1,
         "bike":1,
-        "wsapikey" : os.environ['WalkscoreKey']
+        "wsapikey" : walk_score_api_key
     }
 
     url = "https://api.walkscore.com/score"
