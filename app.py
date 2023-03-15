@@ -33,8 +33,6 @@ On the main page--list caveats: single family, etc.
 Bottom of Attributes, or the toggle page, pictures of the house, links should be around in the meta data..
 '''
 
-### JUST DO THIS IN PYTHON AND SEND A STRING!!!
-
 class ButtonForm(FlaskForm):
     submit = SubmitField()
     reset = SubmitField()
@@ -165,7 +163,7 @@ def verify_address_attributes():
                 session['user_provided_price'] = int(request.form.get('price'))
 
             return redirect(url_for('toggle_model'))
-        if request.form.get('submit') == 'cancel':
+        if request.form.get('submit') == 'Cancel':
             session.clear()
             flash(f'Cookies have been cleared.', 'success')
             return redirect(url_for('main_page'))
