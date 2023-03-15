@@ -7,7 +7,7 @@ import os
 
 from BHU import get_PropertyDetail, House
 from BHU.KerasModelToggle import KerasModelToggle, format_number_as_dollar
-from BHU.API_Calls import _flask_get_UserHome
+from BHU.API_Calls import get_UserHome
 from BHU.KerasTransformers import get_keras_pipeline_from_file
 
 from BHU import create_app
@@ -90,7 +90,7 @@ def main_page():
     if request.method == 'POST':
         if request.form['submit_button'] == 'submit-address':
             address = request.form.get("address")
-            user_home = _flask_get_UserHome(address)
+            user_home = get_UserHome(address, prod=True)
             # Now we have a users address and attributes, or a list of dictionaries.
             if isinstance(user_home, dict):
                 # We have a good address to start modeling.
