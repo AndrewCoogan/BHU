@@ -9,7 +9,7 @@ from ediblepickle import checkpoint
 from typing import Literal, Tuple, List
 
 import os
-prod = False
+prod = True
 if prod:
     us_real_estate_key = os.environ['USRealEstate']
     walk_score_api_key = os.environ['WalkscoreKey']
