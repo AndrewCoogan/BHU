@@ -34,8 +34,9 @@ Bottom of Attributes, or the toggle page, pictures of the house, links should be
 
 class ButtonForm(FlaskForm):
     submit = SubmitField()
-    reset = SubmitField()
     cancel = SubmitField()
+    reset = SubmitField()
+
 
 class DollarForm(FlaskForm):
     new_price_str = TextAreaField()
@@ -56,8 +57,8 @@ def generate_user_parameters(features, price_from_API = 0):
         new_construction = RadioField("New Construction?",choices=[('yes', 'Yes'), ('no', 'No')])
         price = IntegerField("Price")
         submit = SubmitField()
-        reset = SubmitField()
         cancel = SubmitField()
+        reset = SubmitField()
 
     uhf = UserHomeForm()
     uhf.year_built.default = int(features.get('year_built', 0))
@@ -78,9 +79,9 @@ def valid_location(session = session):
     city = session.get('user_home', {}).get('city') or ''
     state = session.get('user_home', {}).get('state_code') or ''
     model_code = f'{city.upper()}_{state.upper()}'
-    model_location = 'BHU/Saved Results/KerasModel/'
+    model_location = 'BHU/Production_Models/Pipeline/'
     available_models = os.listdir(model_location)
-    return (True if model_code + '.pkl' in available_models else False, city, state)
+    return (True if model_code + '.joblib' in available_models else False, city, state)
 
 @app.route('/', methods=['GET', 'POST'])
 def main_page():
@@ -162,11 +163,8 @@ def verify_address_attributes():
                 session['user_provided_price'] = int(request.form.get('price'))
 
             return redirect(url_for('toggle_model'))
-        if request.form.get('submit') == 'Cancel':
-            session.clear()
-            flash(f'Cookies have been cleared.', 'success')
-            return redirect(url_for('main_page'))
-    flash(f'Something horribly wrong happened, sending you back to a safe place.', 'warning')
+    session.clear()
+    flash(f'Cookies have been cleared.', 'success')
     return redirect(url_for('main_page'))
 
 @app.route('/toggle/', methods=['GET', 'POST'])
@@ -213,15 +211,15 @@ def toggle_model():
     if request.method == "POST":
         # The user has submitted a new optimization.
         if request.form.get('reset') == 'Reset':
-            redirect(url_for('toggle_model'))
+            return redirect(url_for('toggle_model'))
         elif request.form.get('cancel') == 'Cancel':
             session.clear()
             flash('All cookies have been cleared. Play again!', 'success')
-            redirect(url_for('main_page'))
+            return redirect(url_for('main_page'))
         elif request.form.get('submit') == 'Submit':
             keras_model_toggle = KerasModelToggle(get_keras_pipeline_from_file(session['model_name']),
                                                   user_features=session['user_home_features'],
-                                                  user_price=session['user_home_price'],
+                                                  user_price = format_number_as_dollar(session['user_home_price']),
                                                   address=session['user_home_address'])
 
             toggle = {}
@@ -243,7 +241,7 @@ def toggle_model():
                                    ButtonForm = ButtonForm(),
                                    New_House_Stats = session['new_house_stats'],
                                    Titles = session['titles'],
-                                   user_provided_price = session['user_home_price'])
+                                   user_provided_price = format_number_as_dollar(session['user_home_price']))
 
     pass
 

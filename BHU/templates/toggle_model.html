@@ -9,7 +9,7 @@ Homepage
 {% block content %}
 <h2>
     What would you like to change about your house?
-    Provided price = ${{ user_provided_price }}
+    Provided price = {{ user_provided_price }}
 </h2>
 <form method="post">
     {{ render_form_row([UserHomeForm.beds, UserHomeForm.garage]) }}
