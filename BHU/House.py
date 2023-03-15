@@ -69,7 +69,7 @@ class House():
     def __repr__(self) -> str:
         if self.user_house:
             return f'This is your home silly, {self.address}.' 
-        return f'{self.reference_info["address"]}, {self.reference_info["city"]} {self.reference_info["state"]}'
+        return f'{self.reference_info["address"]}, {self.city} {self.state}'
     
     def update_bathrooms(self):
         self.bathrooms = self.baths_full + 0.75*self.baths_3qtr + 0.5*self.baths_half + 0.25*self.baths_1qtr

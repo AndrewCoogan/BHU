@@ -27,7 +27,7 @@ USREALESTATE_API_HEADERS = {
 
 @checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
             work_dir='BHU/Saved Results/LocationSuggest/', 
-            prod=True)
+            prod=prod)
 @retry(stop_max_attempt_number=5)
 def get_LocationSuggest(
         search_keyword : str, 
@@ -42,7 +42,6 @@ def get_LocationSuggest(
 
     response = requests.request("GET", url, headers=USREALESTATE_API_HEADERS, params=querystring)
     response_json = response.json()
-
     return response_json if return_all else response_json['data'][0]
 
 @checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
