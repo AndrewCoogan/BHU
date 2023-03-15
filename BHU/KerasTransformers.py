@@ -96,11 +96,8 @@ def generate_keras_pipeline(model_name, scaler):
     )
     return keras_pipeline
 
-def get_keras_model_from_file(model_name, load_from_file, X = None, y = None):
-    if load_from_file:
-        return 
-    
-    keras_pipeline = generate_keras_pipeline(model_name, None)
+def train_keras_pipeline(model_name, X, y, scaler):    
+    keras_pipeline = generate_keras_pipeline(model_name, scaler)
 
     # This is the same as the default parameters.
     keras_pipeline.set_params(**{
@@ -112,4 +109,4 @@ def get_keras_model_from_file(model_name, load_from_file, X = None, y = None):
     return keras_pipeline.fit(X, y)
 
 def get_keras_pipeline_from_file(model_name):
-    return load(f'BHU/Saved Results/Pipeline/{model_name}.joblib')
+    return load(f'BHU/Production_Models/Pipeline/{model_name}.joblib')

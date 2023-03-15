@@ -61,7 +61,6 @@ class KerasModel(BaseEstimator, RegressorMixin):
 
     def fit(self, X=None, y=None):
         model_file_path = f'BHU/Saved Results/KerasModel/{self.model_name}.pkl'
-
         if X is None and y is None:
             if os.path.isfile(model_file_path):
                 with open(model_file_path, 'rb') as f:

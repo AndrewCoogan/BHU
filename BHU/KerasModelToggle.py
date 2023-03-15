@@ -1,5 +1,14 @@
 from sklearn.pipeline import Pipeline
-import pandas as pd
+
+def format_number_as_dollar(value):
+    round_to_the_nearest = 5000
+    rounded_value = round_to_the_nearest * (value // round_to_the_nearest)
+    return f'${rounded_value:,}' 
+
+def format_number_as_percent(value):
+    if value < 1:
+        return "-{:.2f}%".format(100*(1-value))
+    return "{:.2f}%".format(100*value)
 
 class KerasModelToggle():
     def __init__(self, 
@@ -20,7 +29,6 @@ class KerasModelToggle():
         self.predicted_new_value = self.user_price
         self.price_ratio = float(self.user_price / self.model_predicted_user_price)
         self.user_features_mod = user_features.copy()
-        self._attributes = user_features.keys()
 
     def __repr__(self):
         return f'This is a pricing model for {self.address}.'
@@ -41,11 +49,11 @@ class KerasModelToggle():
         '''
         This just resets the user mod to the original state.
         '''
-        self.user_features_mod = self.user_features
+        self.user_features_mod = self.user_features.copy()
     
     def modify_attributes(self, **kwargs):
         for k, v in kwargs.items():
-            if k in self._attributes:
+            if k in self.user_features_mod:
                 self.user_features_mod[k] = v
             else:
                 print(f'{k} is not a valid item to change.')
@@ -66,5 +74,8 @@ class KerasModelToggle():
             'dollar_delta' : dollar_delta,
             'pct_delta' : pct_delta,
             '_user_price_ratio' : self.price_ratio,
-            '_model_predicted_price' : self.model_predicted_user_price
+            '_model_predicted_price' : self.model_predicted_user_price,
+            'scaled_new_value_str' : format_number_as_dollar(scaled_new_value),
+            'dollar_delta_str' : format_number_as_dollar(dollar_delta),
+            'pct_delta_str' : format_number_as_percent(pct_delta)
         }

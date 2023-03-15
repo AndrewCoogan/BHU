@@ -2,13 +2,12 @@
 from flask import Flask, render_template, request, url_for, redirect, session, flash
 from flask_wtf import FlaskForm
 from wtforms.fields import IntegerField, SubmitField, RadioField, DecimalField, TextAreaField
-from wtforms.widgets import Input
 from flask_bootstrap import Bootstrap5
 import secrets
 import os
 
 from BHU import get_PropertyDetail, House
-from BHU.KerasModelToggle import KerasModelToggle
+from BHU.KerasModelToggle import KerasModelToggle, format_number_as_dollar
 from BHU.API_Calls import _flask_get_UserHome
 from BHU.KerasTransformers import get_keras_pipeline_from_file
 
@@ -43,21 +42,15 @@ Bottom of Attributes, or the toggle page, pictures of the house, links should be
 
 ### JUST DO THIS IN PYTHON AND SEND A STRING!!!
 
-class DollarField(TextAreaField):
-    widget = Input()
-    def _value(self):
-        if self.data:
-            return "${:.2f}".format(float(self.data))
-
 class ButtonForm(FlaskForm):
     submit = SubmitField()
     reset = SubmitField()
     cancel = SubmitField()
 
 class DollarForm(FlaskForm):
-    new_price = DollarField()
-    dollar_delta = DollarField()
-    pct_delta = DecimalField()
+    new_price_str = TextAreaField()
+    dollar_delta_str = TextAreaField()
+    pct_delta_str = TextAreaField()
 
 def generate_user_parameters(features, price_from_API = 0):
     class UserHomeForm(FlaskForm):
@@ -67,7 +60,7 @@ def generate_user_parameters(features, price_from_API = 0):
         beds = IntegerField("Beds")
         baths_full = IntegerField("Full Baths")
         baths_3qtr = IntegerField("3/4 Baths")
-        half_baths = IntegerField("1/2 Baths")
+        baths_half = IntegerField("1/2 Baths")
         baths_1qtr = IntegerField("1/4 Baths")
         garage = RadioField("Garage?", choices=[('yes', 'Yes'), ('no', 'No')])
         new_construction = RadioField("New Construction?",choices=[('yes', 'Yes'), ('no', 'No')])
@@ -77,13 +70,13 @@ def generate_user_parameters(features, price_from_API = 0):
         cancel = SubmitField()
 
     uhf = UserHomeForm()
-    uhf.year_built.default = features.get('year_built', 0)
-    uhf.sqft.default = features.get('sqft', 0)
-    uhf.lot_sqft.default = features.get('lot_sqft', 0)
-    uhf.beds.default = features.get('beds', 0)
-    uhf.baths_full.default = features.get('baths_full', 0)
-    uhf.baths_3qtr.default = features.get('baths_3qtr', 0)
-    uhf.half_baths.default = features.get('baths_half', 0)
+    uhf.year_built.default = int(features.get('year_built', 0))
+    uhf.sqft.default = int(features.get('sqft', 0))
+    uhf.lot_sqft.default = int(features.get('lot_sqft', 0))
+    uhf.beds.default = int(features.get('beds', 0))
+    uhf.baths_full.default = int(features.get('baths_full', 0))
+    uhf.baths_3qtr.default = int(features.get('baths_3qtr', 0))
+    uhf.baths_half.default = int(features.get('baths_half', 0))
     uhf.baths_1qtr.default = features.get('baths_1qtr', 0)
     uhf.garage.default = 'yes' if features.get('garage', 0) > 0 else 'no'
     uhf.new_construction.default = 'yes' if features.get('new_construction') else 'no'
@@ -171,12 +164,12 @@ def verify_address_attributes():
             user_features['baths_3qtr'] = int(request.form.get('baths_3qtr', 0))
             user_features['baths_half'] = int(request.form.get('baths_half', 0))
             user_features['baths_1qtr'] = int(request.form.get('baths_1qtr', 0))
-            user_features['garage'] = True if request.form.get('garage') or 0 > 0 else False
-            user_features['new_construction'] = True if request.form.get('new_construction') else False
+            user_features['garage'] = 1 if request.form.get('garage') == 'yes' else 0
+            user_features['new_construction'] = 1 if request.form.get('new_construction') == 'yes' else 0
             session['user_home_features'] = user_features
-
+            
             if 'user_provided_price' not in session:
-                session['user_provided_price'] = request.form.get('price')
+                session['user_provided_price'] = int(request.form.get('price'))
 
             return redirect(url_for('toggle_model'))
         if request.form.get('submit') == 'cancel':
@@ -208,17 +201,17 @@ def toggle_model():
             ### I need to make a form for price and other stats, I can fill it in with default values here.
             ### PRICE, DOLLAR DELTA, PERCENT DELTA
             default_stats = {
-                'scaled_new_value' : session.get('user_home_price', 0),
-                'dollar_delta' : 0,
-                'pct_delta' : 0
+                'scaled_new_value_str' : format_number_as_dollar(session.get('user_home_price', 0)),
+                'dollar_delta_str' : '$0.00',
+                'pct_delta_str' : '0.00%'
             }
             session['new_house_stats'] = [default_stats]
 
         # (internal id, public symbol)
         if 'titles' not in session:
-            session['titles'] = [('scaled_new_value', 'Projected Price'),
-                                 ('dollar_delta', 'Projected Delta ($)'), 
-                                 ('pct_delta', 'Projected Delta (%)')]
+            session['titles'] = [('scaled_new_value_str', 'Projected Price'),
+                                 ('dollar_delta_str', 'Projected Delta ($)'), 
+                                 ('pct_delta_str', 'Projected Delta (%)')]
 
         # At this point, the first run, user_features_mod is just the user defined stuff.
         return render_template('toggle_model.html', 
@@ -229,33 +222,31 @@ def toggle_model():
                                user_provided_price = session['user_home_price'])
     if request.method == "POST":
         # The user has submitted a new optimization.
-
-        if request.form.get('submit') == 'Reset':
+        if request.form.get('reset') == 'Reset':
             redirect(url_for('toggle_model'))
-        elif request.form.get('submit') == 'Cancel':
+        elif request.form.get('cancel') == 'Cancel':
             session.clear()
             flash('All cookies have been cleared. Play again!', 'success')
             redirect(url_for('main_page'))
         elif request.form.get('submit') == 'Submit':
-            # I can save the output here in the cookie and feed it into the GET
             keras_model_toggle = KerasModelToggle(get_keras_pipeline_from_file(session['model_name']),
                                                   user_features=session['user_home_features'],
                                                   user_price=session['user_home_price'],
                                                   address=session['user_home_address'])
-            # ^^^^ I need to initialize this here every time.
 
             toggle = {}
-            toggle['beds'] = request.form.get('beds') or kmt.fg.user_features.get('beds')
-            toggle['baths_full'] = request.form.get('baths_full', 0)
-            toggle['baths_3qtr'] = request.form.get('baths_3qtr', 0)
-            toggle['baths_half'] = request.form.get('baths_half', 0)
-            toggle['baths_1qtr'] = request.form.get('baths_1qtr', 0)
-            toggle['garage'] = True if request.form.get('garage') or 0 > 0 else False
+            toggle['beds'] = int(request.form.get('beds', 0))
+            toggle['baths_full'] = int(request.form.get('baths_full', 0))
+            toggle['baths_3qtr'] = int(request.form.get('baths_3qtr', 0))
+            toggle['baths_half'] = int(request.form.get('baths_half', 0))
+            toggle['baths_1qtr'] = int(request.form.get('baths_1qtr', 0))
+            toggle['garage'] = 1 if request.form.get('garage') == 'yes' else 0
 
             keras_model_toggle.modify_attributes(**toggle)
             new_values = keras_model_toggle.predit_new_value()
             session.pop('new_house_stats', None)
             session['new_house_stats'] = [new_values]
+
             user_form = generate_user_parameters(keras_model_toggle.user_features_mod)
             return render_template('toggle_model.html',
                                    UserHomeForm = user_form,

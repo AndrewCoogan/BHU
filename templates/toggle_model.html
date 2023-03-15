@@ -13,7 +13,7 @@ Homepage
 </h2>
 <form method="post">
     {{ render_form_row([UserHomeForm.beds, UserHomeForm.garage]) }}
-    {{ render_form_row([UserHomeForm.baths_full, UserHomeForm.baths_3qtr, UserHomeForm.half_baths, UserHomeForm.baths_1qtr]) }}
+    {{ render_form_row([UserHomeForm.baths_full, UserHomeForm.baths_3qtr, UserHomeForm.baths_half, UserHomeForm.baths_1qtr]) }}
     {{ render_table(New_House_Stats, Titles) }}
     {{ render_form(ButtonForm, button_map={'submit': 'primary', 'cancel': 'danger', 'reset': 'secondary'}) }}
 </form>
