@@ -9,7 +9,7 @@ from ediblepickle import checkpoint
 from typing import Literal, Tuple, List
 
 import os
-prod = True
+prod = False
 if prod:
     us_real_estate_key = os.environ['USRealEstate']
     walk_score_api_key = os.environ['WalkscoreKey']
@@ -24,7 +24,6 @@ USREALESTATE_API_HEADERS = {
     "X-RapidAPI-Host": "us-real-estate.p.rapidapi.com"
 }
 
-@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='BHU/Saved Results/LocationSuggest/')
 @retry(stop_max_attempt_number=5)
 def get_LocationSuggest(
         search_keyword : str, 
@@ -42,7 +41,6 @@ def get_LocationSuggest(
 
     return response_json if return_all else response_json['data'][0]
 
-@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', work_dir='BHU/Saved Results/PropertyDetail/')
 @retry(stop_max_attempt_number=5)
 def get_PropertyDetail(
         property_id : str
@@ -57,7 +55,6 @@ def get_PropertyDetail(
     response = requests.request("GET", url, headers=USREALESTATE_API_HEADERS, params=querystring)
     return response.json()
 
-@checkpoint(key=string.Template('${property_id}.pkl'), work_dir='BHU/Saved Results/PropertyValue/')
 @retry(stop_max_attempt_number=5)
 def get_PropertyValue(
         property_id : str
@@ -157,8 +154,6 @@ def get_Properties(
         'geo' : geo_to_return
     }
 
-@checkpoint(key=string.Template('${zzzparent_pid}_${zzzzipcode}_${zzzcity}_${zzzsort}.pkl'), \
-    work_dir='BHU/Saved Results/Properties/')
 @retry(stop_max_attempt_number=5)
 def query_url(
         n_results : int, 
@@ -342,7 +337,6 @@ def get_HousesOfInterest(
 
     return listed_homes
 
-@checkpoint(key=string.Template('${lat}_${lon}.pkl'), work_dir='BHU/Saved Results/WalkScore/')
 @retry(stop_max_attempt_number=5)
 def get_WalkScore(
     address : str,
