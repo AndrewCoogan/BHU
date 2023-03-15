@@ -13,6 +13,8 @@ from BHU.KerasTransformers import get_keras_pipeline_from_file
 from BHU import create_app
 app = create_app()
 
+DEBUG = False
+
 bootstrap = Bootstrap5(app)
 
 '''
@@ -227,12 +229,19 @@ def toggle_model():
             toggle['baths_3qtr'] = int(request.form.get('baths_3qtr', 0))
             toggle['baths_half'] = int(request.form.get('baths_half', 0))
             toggle['baths_1qtr'] = int(request.form.get('baths_1qtr', 0))
+            toggle['bathrooms'] = int(request.form.get('baths_full', 0)) +\
+                0.75 * int(request.form.get('baths_3qtr', 0)) +\
+                0.5 * int(request.form.get('baths_half', 0)) +\
+                0.25 * int(request.form.get('baths_1qtr', 0))
             toggle['garage'] = 1 if request.form.get('garage') == 'yes' else 0
 
             keras_model_toggle.modify_attributes(**toggle)
             new_values = keras_model_toggle.predit_new_value()
             session.pop('new_house_stats', None)
             session['new_house_stats'] = [new_values]
+
+            if DEBUG:
+                print(keras_model_toggle.user_features_mod)
 
             user_form = generate_user_parameters(keras_model_toggle.user_features_mod)
             return render_template('toggle_model.html',

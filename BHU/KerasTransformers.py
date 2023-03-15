@@ -71,19 +71,31 @@ preprocess_bucketize_col = Pipeline(
     ]
 )
 
+preprocess_year_col = Pipeline(
+    [
+        ('impute', SimpleImputer(missing_values=np.nan, strategy="mean")),
+        ('bucketize', KBinsDiscretizer(n_bins=10))
+    ]
+)
+
 def generate_keras_pipeline(model_name, scaler):
     normalize_cols = ['lot_sqft', 'sqft']
-    bucketize_cols = ['year_built', 'distance_to_home', 'lat_winz', 'long_winz']
+    bucketize_cols = ['lat_winz', 'long_winz', 'year_built']
     walk_score = ['walk_score']
-    dummy_cols = ['baths_full', 'baths_3qtr', 'baths_half', 'baths_1qtr', 'garage', 'stories', 'beds']
+    dummy_cols = ['garage', 'new_construction']
+    bathtooms = ['bathrooms']
+    attribute_cols = ['beds', 'stories']
 
     preprocess_data = ColumnTransformer(
         [
             ('normalize', StandardScaler(), normalize_cols),
             ('bucketize', preprocess_bucketize_col, bucketize_cols),
             ('dummy', OneHotEncoder(sparse_output=False, handle_unknown='ignore'), dummy_cols),
-            ('walkscore_mm', preprocess_min_max_cols, walk_score),
-            ('walkscore_ss', preprocess_standard_scaler_cols, walk_score)
+            # ('walkscore_mm', preprocess_min_max_cols, walk_score),
+            ('bathrooms', preprocess_min_max_cols, bathtooms),
+            ('walkscore_ss', preprocess_standard_scaler_cols, walk_score),
+            ('toggle_attributes', preprocess_standard_scaler_cols, attribute_cols)
+            #('dates', preprocess_year_col, year_cols)
         ]
     )
 

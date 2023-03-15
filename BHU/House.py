@@ -70,6 +70,9 @@ class House():
         if self.user_house:
             return f'This is your home silly, {self.address}.' 
         return f'{self.reference_info["address"]}, {self.reference_info["city"]} {self.reference_info["state"]}'
+    
+    def update_bathrooms(self):
+        self.bathrooms = self.baths_full + 0.75*self.baths_3qtr + 0.5*self.baths_half + 0.25*self.baths_1qtr
         
     def _query_price_API(self, id : Tuple[int, str]) -> dict:
         property_value = get_PropertyValue(property_id = id)
@@ -136,7 +139,7 @@ class House():
         features = property_details.get('features',{})
         public_records = property_details.get('public_records', [{}])[0]
         address = property_details['address']
-        price_history = property_details['price_history']
+        price_history = property_details.get('price_history', [])
         neighborhoods = property_details.get('neighborhoods', [{}])[0]
 
         num_garage = 0
@@ -176,6 +179,8 @@ class House():
         self.lat_long_winz = self.lat_long
         self.address = address.get('line')
         self.price = most_recent_price
+
+        self.update_bathrooms()
 
         if 'city' not in neighborhoods.keys():
             raise Exception('User home is missing a City, and maybe a state.')
@@ -259,7 +264,6 @@ class House():
         self.beds = self.raw_description.get('beds') or 0
         self.type = self.raw_description.get('type') or 'NONE'
         return
-    
 
     def _get_user_walksore(self) -> float:
         walk_score_raw = get_WalkScore(
@@ -284,6 +288,7 @@ class House():
         }
     
     def user_house_features(self) -> dict:
+        self.update_bathrooms()
         self.features = {}
         if not self.user_house:
             return self.features
@@ -294,6 +299,7 @@ class House():
             'Status' : self.status,
             'Days_listed' : 0,
             'Days_updated' : 0,
+            'bathrooms' : int(self.bathrooms),
             'baths_full' : int(self.baths_full),
             'baths_3qtr' : int(self.baths_3qtr),
             'baths_half' : int(self.baths_half),
@@ -301,7 +307,7 @@ class House():
             'year_built' : int(self.year_built),
             'lot_sqft' : int(self.lot_sqft),
             'sqft' : int(self.sqft),
-            'garage' : int(self.garage),
+            'garage' : bool(self.garage),
             'stories' : int(self.stories),
             'beds' : int(self.beds),
             'tags' : self.tags or [],

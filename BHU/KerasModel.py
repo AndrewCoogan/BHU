@@ -4,6 +4,7 @@ from sklearn.preprocessing import StandardScaler
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.callbacks import EarlyStopping
+from keras.initializers import TruncatedNormal
 from scikeras.wrappers import KerasRegressor
 
 import pickle
@@ -46,20 +47,33 @@ class KerasModel(BaseEstimator, RegressorMixin):
 
     def _keras_model(self, n_cols):
         km = Sequential()
-        km.add(Dense(256, input_shape=(n_cols,), activation='relu', kernel_initializer='normal', name='dense_1'))
-        km.add(Dense(128, activation='relu', kernel_initializer='normal', name='dense_2'))
-        km.add(Dropout(0.20, name='dropout'))
-        km.add(Dense(64, activation='relu', kernel_initializer='normal', name='dense_3'))
-        km.add(Dense(1, activation='linear', kernel_initializer='normal', name='output'))
+        km.add(Dense(256, 
+                     input_shape=(n_cols,), 
+                     activation='relu',
+                     kernel_initializer=TruncatedNormal(stddev=n_cols**-0.5), 
+                     name='dense_1'))
+        km.add(Dense(128, 
+                     activation='relu', 
+                     kernel_initializer=TruncatedNormal(stddev=128**-0.5), 
+                     name='dense_2'))
+        km.add(Dense(64, 
+                     activation='relu', 
+                     kernel_initializer=TruncatedNormal(stddev=64**-0.5), 
+                     name='dense_3'))
+        km.add(Dense(1, 
+                     activation='linear', 
+                     kernel_initializer='normal', 
+                     name='output'))
         km.compile(optimizer='adam', loss='mean_squared_error', metrics=['mean_squared_error', 'mean_absolute_error'])
         return KerasRegressor(model=km)
 
     def _generate_model(self, X, y):
             if not self.update_model: 
                 self.model = self._keras_model(n_cols=X.shape[1])
-            self.model.fit(X, y, epochs=100, batch_size = 50, callbacks = self.earlystopping)
+            self.model.fit(X, y, epochs=200, batch_size = 50, callbacks = self.earlystopping)
 
     def fit(self, X=None, y=None):
+        # This will never be hit in production.
         model_file_path = f'BHU/Saved Results/KerasModel/{self.model_name}.pkl'
         if X is None and y is None:
             if os.path.isfile(model_file_path):
@@ -77,7 +91,6 @@ class KerasModel(BaseEstimator, RegressorMixin):
                     self._generate_model(X, y)
             else:
                 print(f'No model found, generating {self.model_name}.')
-                raise Exception('This is not going to generate any new models. (Yet)')
                 self._generate_model(X, y)
         else:
             self._generate_model(X, y)
@@ -89,5 +102,4 @@ class KerasModel(BaseEstimator, RegressorMixin):
         return self
 
     def predict(self, X):
-        # target_transformer = Scaler().load_model(model_name=self.model_name)
         return self.target_transformer.inverse_transform(self.model.predict(X))

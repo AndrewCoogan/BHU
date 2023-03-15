@@ -1,5 +1,4 @@
 #type:ignore
-
 from BHU.House import House
 from BHU.API_Calls import *
 from typing import Tuple, List
@@ -235,6 +234,7 @@ class FeatureGenerator():
 
 
     def _generate_features(self, h : House) -> dict:
+        h.update_bathrooms()
         h.features = {
             'Property_ID' : h.reference_info.get('id'),
             'Address' : h.reference_info.get('address'),
@@ -245,6 +245,7 @@ class FeatureGenerator():
             'baths_3qtr' : int(h.baths_3qtr),
             'baths_half' : int(h.baths_half),
             'baths_1qtr' : int(h.baths_1qtr),
+            'bathrooms' : int(h.bathrooms),
             'year_built' : int(h.year_built),
             'lot_sqft' : int(h.lot_sqft),
             'sqft' : int(h.sqft),
