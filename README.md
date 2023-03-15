@@ -1,5 +1,7 @@
 # BHU
 
-This is going to be where I put my capstone work. I am going to make a housing model for upgrades and pricing. This will be updated as I get more clarity. 
+Bang for Buck Housing Upgrade (BHU) is an app that empowers users to make informed decisions when looking to work on one of their most valuable assets--their home. The effort in getting contractors, materials, and rental space if the work is extensive is an expensive venture and not something that should be taken lightly. With this app, a user can provide an address in covered cities.
 
-This is a quick test to see if this is how it works.
+Currently covered cities:
+  - Seattle, WA
+  - Chicago, IL
