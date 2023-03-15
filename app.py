@@ -179,7 +179,6 @@ def toggle_model():
             user_feature_mod = session.pop('user_feature_mod', None)
             user_form = generate_user_parameters(user_feature_mod)
             
-            ### I NEED TO PULL IN THE DICT AND PARSE HERE, THATS FINE.
             price_stats = session.pop('price_stats', 0)
             session.pop('new_house_stats', None)
             session['new_house_stats'] = [price_stats]
@@ -189,7 +188,7 @@ def toggle_model():
             ### I need to make a form for price and other stats, I can fill it in with default values here.
             ### PRICE, DOLLAR DELTA, PERCENT DELTA
             default_stats = {
-                'scaled_new_value_str' : format_number_as_dollar(session.get('user_home_price', 0)),
+                'scaled_new_value_str' : format_number_as_dollar(session['user_home_price']),
                 'dollar_delta_str' : '$0.00',
                 'pct_delta_str' : '0.00%'
             }
@@ -207,7 +206,7 @@ def toggle_model():
                                ButtonForm = ButtonForm(),
                                New_House_Stats = session['new_house_stats'],
                                Titles = session['titles'],
-                               user_provided_price = session['user_home_price'])
+                               user_provided_price = format_number_as_dollar(session['user_home_price']))
     if request.method == "POST":
         # The user has submitted a new optimization.
         if request.form.get('reset') == 'Reset':
@@ -219,7 +218,7 @@ def toggle_model():
         elif request.form.get('submit') == 'Submit':
             keras_model_toggle = KerasModelToggle(get_keras_pipeline_from_file(session['model_name']),
                                                   user_features=session['user_home_features'],
-                                                  user_price = format_number_as_dollar(session['user_home_price']),
+                                                  user_price = session['user_home_price'],
                                                   address=session['user_home_address'])
 
             toggle = {}
