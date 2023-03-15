@@ -3,23 +3,12 @@ from flask import Flask, render_template, request, url_for, redirect, session, f
 from flask_wtf import FlaskForm
 from wtforms.fields import IntegerField, SubmitField, RadioField, DecimalField, TextAreaField
 from flask_bootstrap import Bootstrap5
-import secrets
 import os
 
 from BHU import get_PropertyDetail, House
 from BHU.KerasModelToggle import KerasModelToggle, format_number_as_dollar
 from BHU.API_Calls import _flask_get_UserHome
 from BHU.KerasTransformers import get_keras_pipeline_from_file
-
-app = Flask(__name__)
-app.config['BOOTSTRAP_BOOTSWATCH_THEME'] = 'zephyr'
-app.config['BOOTSTRAP_BTN_STYLE'] = 'primary'
-app.config['BOOTSTRAP_BTN_SIZE'] = 'sm'
-app.config['BOOTSTRAP_TABLE_VIEW_TITLE'] = 'Read'
-app.config['BOOTSTRAP_TABLE_EDIT_TITLE'] = 'Update'
-app.config['BOOTSTRAP_TABLE_DELETE_TITLE'] = 'Remove'
-app.config['BOOTSTRAP_TABLE_NEW_TITLE'] = 'Create'
-app.secret_key = secrets.token_hex()
 
 bootstrap = Bootstrap5(app)
 
@@ -167,7 +156,7 @@ def verify_address_attributes():
             user_features['garage'] = 1 if request.form.get('garage') == 'yes' else 0
             user_features['new_construction'] = 1 if request.form.get('new_construction') == 'yes' else 0
             session['user_home_features'] = user_features
-            
+
             if 'user_provided_price' not in session:
                 session['user_provided_price'] = int(request.form.get('price'))
 
