@@ -8,11 +8,11 @@ from retrying import retry
 from ediblepickle import checkpoint
 from typing import Literal, Tuple, List
 
-import keys as k
+import os
 
 RESULTS_PER_REQUEST_LIMIT = 200
 USREALESTATE_API_HEADERS = {
-    "X-RapidAPI-Key": k.getKeys()['USRealEstate'],
+    "X-RapidAPI-Key": os.environ['USRealEstate'],
     "X-RapidAPI-Host": "us-real-estate.p.rapidapi.com"
 }
 
@@ -349,7 +349,7 @@ def get_WalkScore(
         "lon":lon,
         "transit":1,
         "bike":1,
-        "wsapikey" : k.getKeys()['WalkscoreKey']
+        "wsapikey" : os.environ['WalkscoreKey']
     }
 
     url = "https://api.walkscore.com/score"
