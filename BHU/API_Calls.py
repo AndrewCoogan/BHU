@@ -26,6 +26,9 @@ USREALESTATE_API_HEADERS = {
     "X-RapidAPI-Host": "us-real-estate.p.rapidapi.com"
 }
 
+@bhu_checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
+            work_dir='BHU/Saved Results/LocationSuggest/', 
+            prod=prod)
 @retry(stop_max_attempt_number=5)
 def get_LocationSuggest(
         search_keyword : str, 
