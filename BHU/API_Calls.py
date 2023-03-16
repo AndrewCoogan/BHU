@@ -26,9 +26,6 @@ USREALESTATE_API_HEADERS = {
     "X-RapidAPI-Host": "us-real-estate.p.rapidapi.com"
 }
 
-@bhu_checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
-            work_dir='BHU/Saved Results/LocationSuggest/', 
-            prod=prod)
 @retry(stop_max_attempt_number=5)
 def get_LocationSuggest(
         search_keyword : str, 
@@ -45,9 +42,6 @@ def get_LocationSuggest(
     response_json = response.json()
     return response_json if return_all else response_json['data'][0]
 
-@bhu_checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
-            work_dir='BHU/Saved Results/PropertyDetail/',
-            prod=prod)
 @retry(stop_max_attempt_number=5)
 def get_PropertyDetail(
         property_id : str
@@ -62,9 +56,6 @@ def get_PropertyDetail(
     response = requests.request("GET", url, headers=USREALESTATE_API_HEADERS, params=querystring)
     return response.json()
 
-@bhu_checkpoint(key=string.Template('${property_id}.pkl'), 
-            work_dir='BHU/Saved Results/PropertyValue/',
-            prod=prod)
 @retry(stop_max_attempt_number=5)
 def get_PropertyValue(
         property_id : str
@@ -339,9 +330,6 @@ def get_HousesOfInterest(
 
     return listed_homes
 
-@bhu_checkpoint(key=string.Template('${lat}_${lon}.pkl'), 
-            work_dir='BHU/Saved Results/WalkScore/',
-            prod=prod)
 @retry(stop_max_attempt_number=5)
 def get_WalkScore(
     address : str,

@@ -76,6 +76,7 @@ def bhu_checkpoint(key=0, unpickler=pickle.load, pickler=pickle.dump, work_dir=g
     def decorator(func):
         def wrapped(*args, **kwargs):
             if prod:
+                logging.info('bhu_checkpoint prod, no file looked for or generated.')
                 return
             
             # If first arg is a string, use it directly.
