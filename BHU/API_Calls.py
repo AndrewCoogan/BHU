@@ -7,11 +7,11 @@ from urllib.parse import quote
 from retrying import retry
 from typing import Literal, Tuple, List
 
-from BHU.Checkpoint import checkpoint
+from BHU.Checkpoint import bhu_checkpoint
 
 import os
 
-prod  = True if 'LIVE' in os.environ else False
+prod  = 'LIVE' in os.environ
 if prod:
     us_real_estate_key = os.environ['USRealEstate']
     walk_score_api_key = os.environ['WalkscoreKey']
@@ -26,7 +26,7 @@ USREALESTATE_API_HEADERS = {
     "X-RapidAPI-Host": "us-real-estate.p.rapidapi.com"
 }
 
-@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
+@bhu_checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
             work_dir='BHU/Saved Results/LocationSuggest/', 
             prod=prod)
 @retry(stop_max_attempt_number=5)
@@ -45,7 +45,7 @@ def get_LocationSuggest(
     response_json = response.json()
     return response_json if return_all else response_json['data'][0]
 
-@checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
+@bhu_checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
             work_dir='BHU/Saved Results/PropertyDetail/',
             prod=prod)
 @retry(stop_max_attempt_number=5)
@@ -62,7 +62,7 @@ def get_PropertyDetail(
     response = requests.request("GET", url, headers=USREALESTATE_API_HEADERS, params=querystring)
     return response.json()
 
-@checkpoint(key=string.Template('${property_id}.pkl'), 
+@bhu_checkpoint(key=string.Template('${property_id}.pkl'), 
             work_dir='BHU/Saved Results/PropertyValue/',
             prod=prod)
 @retry(stop_max_attempt_number=5)
@@ -163,7 +163,7 @@ def get_Properties(
         'houses' : houses_to_return,
         'geo' : geo_to_return
     }
-@checkpoint(key=string.Template('${zzzparent_pid}_${zzzzipcode}_${zzzcity}_${zzzsort}.pkl'),
+@bhu_checkpoint(key=string.Template('${zzzparent_pid}_${zzzzipcode}_${zzzcity}_${zzzsort}.pkl'),
             work_dir='BHU/Saved Results/Properties/',
             prod=prod)
 @retry(stop_max_attempt_number=5)
@@ -339,7 +339,7 @@ def get_HousesOfInterest(
 
     return listed_homes
 
-@checkpoint(key=string.Template('${lat}_${lon}.pkl'), 
+@bhu_checkpoint(key=string.Template('${lat}_${lon}.pkl'), 
             work_dir='BHU/Saved Results/WalkScore/',
             prod=prod)
 @retry(stop_max_attempt_number=5)

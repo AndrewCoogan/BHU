@@ -11,7 +11,7 @@ import types
 __author__ = 'pavan.mnssk@gmail.com'
 # ^^^ original author, I only added the trivial flag.
 
-def checkpoint(key=0, unpickler=pickle.load, pickler=pickle.dump, work_dir=gettempdir(), refresh=False, prod=False):
+def bhu_checkpoint(key=0, unpickler=pickle.load, pickler=pickle.dump, work_dir=gettempdir(), refresh=False, prod=False):
     """
     A utility decorator to save intermediate results of a function. It is the
     caller's responsibility to specify a key naming scheme such that the output of

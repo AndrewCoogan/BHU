@@ -5,7 +5,7 @@ from BHU.KerasModel import KerasModel
 from BHU.KerasModelToggle import KerasModelToggle
 from BHU.KerasTransformers import *
 from BHU.WalkScoreModel import WalkScoreModel
-from BHU.Checkpoint import checkpoint
+from BHU.Checkpoint import bhu_checkpoint
 
 from flask import Flask
 import secrets
