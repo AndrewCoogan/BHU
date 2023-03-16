@@ -1,7 +1,7 @@
 #type:ignore
 from flask import render_template, request, url_for, redirect, session, flash
 from flask_wtf import FlaskForm
-from wtforms.fields import IntegerField, SubmitField, RadioField, TextAreaField
+from wtforms.fields import IntegerField, SubmitField, RadioField, TextAreaField, SelectField
 from flask_bootstrap import Bootstrap5
 import os
 
@@ -39,11 +39,17 @@ class ButtonForm(FlaskForm):
     cancel = SubmitField()
     reset = SubmitField()
 
+class ButtonFormNoReset(FlaskForm):
+    submit = SubmitField()
+    cancel = SubmitField()
 
 class DollarForm(FlaskForm):
     new_price_str = TextAreaField()
     dollar_delta_str = TextAreaField()
     pct_delta_str = TextAreaField()
+
+class AnalyticsForm(FlaskForm):
+    choose_city = SelectField(choices=[('SEATTLE_WA', 'Seattle, WA'), ('CHICAGO_IL', 'Chicago, IL')])
 
 def generate_user_parameters(features, price_from_API = 0):
     class UserHomeForm(FlaskForm):
@@ -88,13 +94,18 @@ def valid_location(session = session):
 @app.route('/', methods=['GET', 'POST'])
 def main_page():
     if request.method == 'POST':
-        if request.form['submit_button'] == 'submit-address':
+        if request.form.get('submit_button') == 'submit-address':
             address = request.form.get("address")
             user_home = get_UserHome(address, prod=True)
             # Now we have a users address and attributes, or a list of dictionaries.
             if isinstance(user_home, dict):
                 # We have a good address to start modeling.
                 session['user_home'] = user_home
+                model_verified, city, state = valid_location(session)
+                if not model_verified:
+                    session.clear()
+                    flash(f'Unfortunately, there is no working model currently available for {city}, {state}.', 'warning')
+                    return redirect(url_for('main_page'))
                 return redirect(url_for('verify_address_attributes'))
             # If we are here, we know it was an ambiguous address.
             multiple_addresses = [a['full_address'][0] for a in user_home]
@@ -102,10 +113,35 @@ def main_page():
             return redirect(url_for('choose_address'))
     return render_template('index.html')
 
+@app.route('/analytics/', methods=['GET', 'POST'])
+def analytics():
+    # Here we need to have a dropdown box at the top with the options for the analytics.
+    if request.method == 'POST':
+        if request.form.get('submit') == 'Submit':
+            if request.form.get('choose_city') == 'CHICAGO_IL':
+                # Load and show chicago stats
+                return(render_template('analytics.html', 
+                                       AnalyticsForm = AnalyticsForm(), 
+                                       ButtonForm = ButtonFormNoReset(), 
+                                       data = {}))
+            elif request.form.get('choose_city') == 'SEATTLE_WA':
+                # Load and show seattle stats
+                return(render_template('analytics.html', 
+                                       AnalyticsForm = AnalyticsForm(), 
+                                       ButtonForm = ButtonFormNoReset(),
+                                       data = {}))
+        elif request.form.get('cancel') == 'cancel':
+            return redirect(url_for('main_page'))
+    return render_template('analytics.html', 
+                           AnalyticsForm = AnalyticsForm(), 
+                           ButtonForm = ButtonFormNoReset(), 
+                           data = None)
+
+
 @app.route('/choose/', methods=['GET', 'POST'])
 def choose_address():
     if request.method == 'POST':
-        if request.form['submit_button'] == 'submit-address':
+        if request.form.get('submit_button') == 'submit-address':
             session.pop('addresses', None)
             selected_address = request.form.get("options")
             # If the user selects none, go back to home page.
@@ -114,7 +150,7 @@ def choose_address():
                 return redirect(url_for('main_page'))
             session['user_home'] = _flask_get_UserHome(selected_address)
             # Is the city covered by BHU?
-            user_choice_valid, city, state = valid_location()
+            user_choice_valid, city, state = valid_location(session)
             # If not, throw an error and go back to the home page.
             if not user_choice_valid:
                 flash(f'Unfortunately, there is no working model currently available for {city}, {state}.', 'warning')
@@ -143,7 +179,7 @@ def verify_address_attributes():
         ### I will no longer need to feed that into KerasModel
         # session['fg__features'] = fg.features
         # session['fg__targets'] = fg.targets
-        return render_template('attributes.html', UserHomeForm = user_form, ButtonForm = ButtonForm())
+        return render_template('attributes.html', UserHomeForm = user_form, ButtonForm = ButtonFormNoReset())
     elif request.method == 'POST':
         # Here we need to read in the users values and update them. We should assume we need to update them all.
         if request.form.get('submit') == 'Submit':

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% from 'bootstrap5/form.html' import render_form, render_field, render_form_row %}
+
+{% block title %}
+Analytics
+{% endblock %}
+ 
+{% block content %}
+<h2>
+    Here is your chance to look at general statistics of the areas covered.
+</h2>
+<form method="post">
+    {{ render_form_row(AnalyticsForm) }}
+
+    {% if data != {} %}
+    Here is some data.
+    {% endif %}
+    <br>
+    {{ render_form(ButtonForm, button_map={'submit': 'primary', 'cancel': 'danger'}) }}
+</form>
+
+{% endblock %}

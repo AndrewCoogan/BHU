@@ -10,7 +10,8 @@ from typing import Literal, Tuple, List
 from BHU.Checkpoint import checkpoint
 
 import os
-prod = True
+
+prod  = True if 'LIVE' in os.environ else False
 if prod:
     us_real_estate_key = os.environ['USRealEstate']
     walk_score_api_key = os.environ['WalkscoreKey']

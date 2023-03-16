@@ -86,6 +86,8 @@ def generate_keras_pipeline(model_name, scaler):
     bathtooms = ['bathrooms']
     attribute_cols = ['beds', 'stories']
 
+    # Do I put the bathrooms back in if we have an aggregate value?
+
     preprocess_data = ColumnTransformer(
         [
             ('normalize', StandardScaler(), normalize_cols),
