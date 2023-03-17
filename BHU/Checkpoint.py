@@ -1,5 +1,6 @@
 #https://github.com/mpavan/ediblepickle/blob/master/ediblepickle.py
 # I want to be able to toggle if its on or not with it being in PROD.
+# I actually got some help with ChatGPT on this one, lmao.
 
 import os
 import pickle
@@ -74,10 +75,10 @@ def bhu_checkpoint(key=0, unpickler=pickle.load, pickler=pickle.dump, work_dir=g
     """
 
     def decorator(func):
-        def wrapped(*args, **kwargs):
+        def wrapped(*args, prod=False, **kwargs):
             if prod:
                 logging.info('bhu_checkpoint prod, no file looked for or generated.')
-                return func
+                return func(*args, **kwargs)
             
             # If first arg is a string, use it directly.
             if isinstance(key, str):

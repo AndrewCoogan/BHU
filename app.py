@@ -118,24 +118,24 @@ def analytics():
     # Here we need to have a dropdown box at the top with the options for the analytics.
     if request.method == 'POST':
         if request.form.get('submit') == 'Submit':
+            displays = ['bathrooms', 'year_built', 'lot_sqft', 'sqft', 'beds', 'walk_score']
             if request.form.get('choose_city') == 'CHICAGO_IL':
                 # Load and show chicago stats
-                return(render_template('analytics.html', 
-                                       AnalyticsForm = AnalyticsForm(), 
-                                       ButtonForm = ButtonFormNoReset(), 
-                                       data = {}))
+                header = 'chicago'
             elif request.form.get('choose_city') == 'SEATTLE_WA':
-                # Load and show seattle stats
-                return(render_template('analytics.html', 
-                                       AnalyticsForm = AnalyticsForm(), 
-                                       ButtonForm = ButtonFormNoReset(),
-                                       data = {}))
+                header = 'seattle'
+            return(render_template('analytics.html', 
+                                    AnalyticsForm = AnalyticsForm(), 
+                                    ButtonForm = ButtonFormNoReset(), 
+                                    Displays = displays,
+                                    Header = header))
         elif request.form.get('cancel') == 'cancel':
             return redirect(url_for('main_page'))
     return render_template('analytics.html', 
                            AnalyticsForm = AnalyticsForm(), 
                            ButtonForm = ButtonFormNoReset(), 
-                           data = None)
+                           Displays = [],
+                           Header = None)
 
 
 @app.route('/choose/', methods=['GET', 'POST'])
@@ -148,7 +148,7 @@ def choose_address():
             if selected_address == 'none':
                 session.clear()
                 return redirect(url_for('main_page'))
-            session['user_home'] = _flask_get_UserHome(selected_address)
+            session['user_home'] = get_UserHome(selected_address)
             # Is the city covered by BHU?
             user_choice_valid, city, state = valid_location(session)
             # If not, throw an error and go back to the home page.

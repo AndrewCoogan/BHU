@@ -12,8 +12,10 @@ Analytics
 <form method="post">
     {{ render_form_row(AnalyticsForm) }}
 
-    {% if data != {} %}
-    Here is some data.
+    {% if Displays != [] %}
+    {% for display in Displays %}
+        <img src="/static/{{ Header }}_{{ display }}.png">
+    {% endfor %}
     {% endif %}
     <br>
     {{ render_form(ButtonForm, button_map={'submit': 'primary', 'cancel': 'danger'}) }}

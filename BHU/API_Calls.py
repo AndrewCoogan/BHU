@@ -27,12 +27,12 @@ USREALESTATE_API_HEADERS = {
 }
 
 @bhu_checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
-            work_dir='BHU/Saved Results/LocationSuggest/', 
-            prod=prod)
+            work_dir='BHU/Saved Results/LocationSuggest/')
 @retry(stop_max_attempt_number=5)
 def get_LocationSuggest(
         search_keyword : str, 
-        return_all     : bool = False
+        prod           : bool = prod,
+        return_all     : bool = False,
     ) -> dict:
 
     url = "https://us-real-estate.p.rapidapi.com/location/suggest"
@@ -45,9 +45,12 @@ def get_LocationSuggest(
     response_json = response.json()
     return response_json if return_all else response_json['data'][0]
 
+@bhu_checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
+            work_dir='BHU/Saved Results/PropertyDetail/')
 @retry(stop_max_attempt_number=5)
 def get_PropertyDetail(
-        property_id : str
+        property_id : str,
+        prod        : bool = prod
     ) -> dict:
 
     url = "https://us-real-estate.p.rapidapi.com/v2/property-detail"
@@ -59,9 +62,12 @@ def get_PropertyDetail(
     response = requests.request("GET", url, headers=USREALESTATE_API_HEADERS, params=querystring)
     return response.json()
 
+@bhu_checkpoint(key=string.Template('${property_id}.pkl'), 
+            work_dir='BHU/Saved Results/PropertyValue/')
 @retry(stop_max_attempt_number=5)
 def get_PropertyValue(
-        property_id : str
+        property_id : str,
+        prod        : bool = prod 
     ) -> dict:
     url = "https://us-real-estate.p.rapidapi.com/for-sale/home-estimate-value"
 
@@ -70,6 +76,31 @@ def get_PropertyValue(
     }
 
     response = requests.request("GET", url, headers=USREALESTATE_API_HEADERS, params=querystring)
+    return response.json()
+
+@bhu_checkpoint(key=string.Template('${lat}_${lon}.pkl'), 
+            work_dir='BHU/Saved Results/WalkScore/')
+@retry(stop_max_attempt_number=5)
+def get_WalkScore(
+    address : str,
+    lat : float,
+    lon : float,
+    prod : bool = prod
+    ) -> dict:
+
+    querystring = {
+        "format":'json',
+        "address":quote(address),
+        "lat":lat,
+        "lon":lon,
+        "transit":1,
+        "bike":1,
+        "wsapikey" : walk_score_api_key
+    }
+
+    url = "https://api.walkscore.com/score"
+
+    response = requests.request("GET", url, params=querystring)
     return response.json()
 
 def get_Properties(
@@ -158,8 +189,7 @@ def get_Properties(
         'geo' : geo_to_return
     }
 @bhu_checkpoint(key=string.Template('${zzzparent_pid}_${zzzzipcode}_${zzzcity}_${zzzsort}.pkl'),
-            work_dir='BHU/Saved Results/Properties/',
-            prod=prod)
+            work_dir='BHU/Saved Results/Properties/')
 @retry(stop_max_attempt_number=5)
 def query_url(
         n_results : int, 
@@ -169,7 +199,8 @@ def query_url(
         zzzparent_pid : str,
         zzzzipcode : str,
         zzzcity : str,
-        zzzsort : str
+        zzzsort : str,
+        prod : bool = prod
     ) -> Tuple[dict, List[dict]]:
     '''
     Honestly, this was just made the make the get_Properties function just a little less busy.
@@ -215,7 +246,7 @@ def query_url(
 
 def get_UserHome(
         user_input : str,
-        prod : bool = False
+        prod : bool = prod
     ):
 
     location_suggest = get_LocationSuggest(user_input, return_all=True)
@@ -332,25 +363,3 @@ def get_HousesOfInterest(
     listed_homes['houses'].extend(sold_homes['houses'].copy())
 
     return listed_homes
-
-@retry(stop_max_attempt_number=5)
-def get_WalkScore(
-    address : str,
-    lat : float,
-    lon : float
-    ) -> dict:
-
-    querystring = {
-        "format":'json',
-        "address":quote(address),
-        "lat":lat,
-        "lon":lon,
-        "transit":1,
-        "bike":1,
-        "wsapikey" : walk_score_api_key
-    }
-
-    url = "https://api.walkscore.com/score"
-
-    response = requests.request("GET", url, params=querystring)
-    return response.json()
