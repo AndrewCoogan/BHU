@@ -27,7 +27,7 @@ USREALESTATE_API_HEADERS = {
 }
 
 @bhu_checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
-            work_dir='BHU/Saved Results/LocationSuggest/')
+            work_dir='BHU/Saved Results/LocationSuggest/', prod=prod)
 @retry(stop_max_attempt_number=5)
 def get_LocationSuggest(
         search_keyword : str, 
@@ -46,7 +46,7 @@ def get_LocationSuggest(
     return response_json if return_all else response_json['data'][0]
 
 @bhu_checkpoint(key=lambda args, kwargs: quote(args[0]) + '.pkl', 
-            work_dir='BHU/Saved Results/PropertyDetail/')
+            work_dir='BHU/Saved Results/PropertyDetail/', prod=prod)
 @retry(stop_max_attempt_number=5)
 def get_PropertyDetail(
         property_id : str,
@@ -63,7 +63,7 @@ def get_PropertyDetail(
     return response.json()
 
 @bhu_checkpoint(key=string.Template('${property_id}.pkl'), 
-            work_dir='BHU/Saved Results/PropertyValue/')
+            work_dir='BHU/Saved Results/PropertyValue/', prod=prod)
 @retry(stop_max_attempt_number=5)
 def get_PropertyValue(
         property_id : str,
@@ -79,7 +79,7 @@ def get_PropertyValue(
     return response.json()
 
 @bhu_checkpoint(key=string.Template('${lat}_${lon}.pkl'), 
-            work_dir='BHU/Saved Results/WalkScore/')
+            work_dir='BHU/Saved Results/WalkScore/', prod=prod)
 @retry(stop_max_attempt_number=5)
 def get_WalkScore(
     address : str,
@@ -189,7 +189,7 @@ def get_Properties(
         'geo' : geo_to_return
     }
 @bhu_checkpoint(key=string.Template('${zzzparent_pid}_${zzzzipcode}_${zzzcity}_${zzzsort}.pkl'),
-            work_dir='BHU/Saved Results/Properties/')
+            work_dir='BHU/Saved Results/Properties/', prod=prod)
 @retry(stop_max_attempt_number=5)
 def query_url(
         n_results : int, 
