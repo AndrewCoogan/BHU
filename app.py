@@ -89,7 +89,8 @@ def valid_location(session = session):
     model_code = f'{city.upper()}_{state.upper()}'
     model_location = 'BHU/Production_Models/Pipeline/'
     available_models = os.listdir(model_location)
-    return (True if model_code + '.joblib' in available_models else False, city, state)
+    valid = model_code + '.joblib' in available_models
+    return (valid, city, state)
 
 @app.route('/', methods=['GET', 'POST'])
 def main_page():
@@ -153,8 +154,8 @@ def choose_address():
             user_choice_valid, city, state = valid_location(session)
             # If not, throw an error and go back to the home page.
             if not user_choice_valid:
-                flash(f'Unfortunately, there is no working model currently available for {city}, {state}.', 'warning')
                 session.clear()
+                flash(f'Unfortunately, there is no working model currently available for {city}, {state}.', 'warning')
                 return redirect(url_for('main_page'))
             # If yes, lets load the models and proceed.
             session['model_name'] = f'{city.upper()}_{state.upper()}'
