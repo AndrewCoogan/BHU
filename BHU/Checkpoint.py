@@ -80,43 +80,47 @@ def bhu_checkpoint(key=0, unpickler=pickle.load, pickler=pickle.dump, work_dir=g
                 logging.info('bhu_checkpoint prod, no file looked for or generated.')
                 return func(*args, **kwargs)
             
-            # If first arg is a string, use it directly.
-            if isinstance(key, str):
-                save_file = os.path.join(work_dir, key)
-            elif isinstance(key, Template):
-                save_file = os.path.join(work_dir, key.substitute(kwargs))
-                save_file = save_file.format(*args)
-            elif isinstance(key, types.FunctionType):
-                save_file = os.path.join(work_dir, key(args, kwargs))
-            else:
-                logging.warn('Using 0-th argument as default.')
-                save_file = os.path.join(work_dir, '{0}')
-                save_file = save_file.format(args[key])
+            try:
+                # If first arg is a string, use it directly.
+                if isinstance(key, str):
+                    save_file = os.path.join(work_dir, key)
+                elif isinstance(key, Template):
+                    save_file = os.path.join(work_dir, key.substitute(kwargs))
+                    save_file = save_file.format(*args)
+                elif isinstance(key, types.FunctionType):
+                    save_file = os.path.join(work_dir, key(args, kwargs))
+                else:
+                    logging.warn('Using 0-th argument as default.')
+                    save_file = os.path.join(work_dir, '{0}')
+                    save_file = save_file.format(args[key])
 
-            logging.info('checkpoint@ %s' % save_file)
+                logging.info('checkpoint@ %s' % save_file)
 
-            # cache_file doesn't exist, run the function and save output in checkpoint.
+                # cache_file doesn't exist, run the function and save output in checkpoint.
 
-            if isinstance(refresh, types.FunctionType):
-                do_refresh = refresh()
-            else:
-                do_refresh = refresh
+                if isinstance(refresh, types.FunctionType):
+                    do_refresh = refresh()
+                else:
+                    do_refresh = refresh
 
-            if do_refresh or not os.path.exists(path=save_file):  # Otherwise compute it save it and return it.
-                # If the program fails, don't checkpoint.
-                try:
-                    out = func(*args, **kwargs)
-                except: # a blank raise re-raises the last exception.
-                    raise
-                else:  # If the program is successful, then go ahead and call the save function.
-                    with open(save_file, 'wb') as f:
-                        pickler(out, f)
-                        return out
-            # Otherwise, load the checkpoint file and send it.
-            else:
-                logging.info("Checkpoint exists. Loading from: %s" % save_file)
-                with open(save_file, 'rb') as f:
-                    return unpickler(f)
+                if do_refresh or not os.path.exists(path=save_file):  # Otherwise compute it save it and return it.
+                    # If the program fails, don't checkpoint.
+                    try:
+                        out = func(*args, **kwargs)
+                    except: # a blank raise re-raises the last exception.
+                        raise
+                    else:  # If the program is successful, then go ahead and call the save function.
+                        with open(save_file, 'wb') as f:
+                            pickler(out, f)
+                            return out
+                # Otherwise, load the checkpoint file and send it.
+                else:
+                    logging.info("Checkpoint exists. Loading from: %s" % save_file)
+                    with open(save_file, 'rb') as f:
+                        return unpickler(f)
+            except:
+                return func(*args, **kwargs)
+            
         return wrapped
 
     return decorator
