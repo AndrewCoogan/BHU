@@ -15,4 +15,86 @@ Homepage
     {{ render_form_row([UserHomeForm.year_built, UserHomeForm.garage, UserHomeForm.new_construction]) }}
     {{ render_form(ButtonForm, button_map={'submit': 'primary', 'cancel': 'danger'}) }}
 </form>
+<body>
+    <br>
+    <div class="container">
+        <h2>House Price History</h2>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">
+            Show Graph
+        </button>
+    </div>
+
+    <!-- Model -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Time Series of Price Histry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <canvas id="myChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Define the time series data from Flask
+        var timeSeriesData = {{ TS_info | tojson }};
+    
+        // Create an object to store the datasets
+        var datasets = {};
+    
+        // Loop over the time series data and group by source
+        timeSeriesData.forEach(function(data) {
+            var source = data.source;
+            var dates = data.date;
+            var prices = data.price;
+    
+            // Create a new dataset if it doesn't exist yet
+            if (!(source in datasets)) {
+                datasets[source] = {
+                    label: source,
+                    data: [],
+                    borderColor: getUniqueColor(), // Replace with your desired function to generate unique colors
+                    fill: false,
+                    lineTension: 0
+                };
+            }
+    
+            // Add the data points to the dataset
+            for (var i = 0; i < dates.length; i++) {
+                datasets[source].data.push({x: dates[i], y: prices[i]});
+            }
+        });
+    
+        // Create a new chart object
+        var ctx = document.getElementById('myChart').getContext('2d');
+        var chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: Object.values(datasets)
+            },
+            options: {
+                scales: {
+                    xAxes: [{
+                        type: 'time',
+                        time: {
+                            unit: 'day'
+                        } 
+                    }]
+                }
+            }
+        });
+    
+        // Function to generate unique colors
+        function getUniqueColor() {
+            // Replace with your desired function to generate unique colors
+            // This example returns a random color from a predefined list
+            var colors = ['red', 'green', 'blue', 'orange', 'purple'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+    </script>    
+</body>
 {% endblock %}

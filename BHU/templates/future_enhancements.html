@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}
+What's on the horizon?
+{% endblock %}
+ 
+{% block content %}
+<h1>What's on the horizon?</h1>
+<d1>
+    <dt>A Better Model</dt>
+    <dd> 
+        - Currently, the model is pretty bad. Its really goot at predicting the price of the house, but when
+        the attributes are togged it sort of falls apart. This seems to me the model is overfit, which I have 
+        told my self shouldn't be the case as its a neural network, but those are the symptoms I am seeing. I 
+        initially tried to make some sort of ensamble model but that ended up being really overfit. I might take
+        another stab at that, but make more of an effort to not allow the models to run away with themselves.
+    </dd>
+    <dt>Chart.js Graphs</dt>
+    <dd>
+        - I would like the charts to be a bit more dynamic. They are currently just images.
+    </dd>
+    <dd>
+        - Show where the user house is in comparason to the other properties.
+    </dd>
+    <dt>Admin Zone</dt>
+    <dd>
+        - Set up area where I can make changes.
+    </dd>
+    <dt>Clean up Checkpoint</dt>
+    <dd>
+        - Using checkpoints for caching and then pushing them to a web service causes a lot of issues as file paths
+        do not directly translate as I do not load all of my information online. My solution to it was to copy the code
+        for checkpoint decorator from pickle, and wrap it in a try catch. It works, but its not elegant. 
+    </dd>
+</d1>
+
+{% endblock %}

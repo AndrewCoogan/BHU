@@ -175,12 +175,36 @@ def verify_address_attributes():
         session['model_name'] = f'{user_house.city}_{user_house.state}'
 
         # address - user_house.address
+        source_info = list(user_house.user_home_stats.get('historical_values', {}).keys()) 
+        if len(source_info):
+            source_info = source_info[0]
+            ts_info = user_house.user_home_stats['historical_values'][source_info]
+            date_list = [x[0] for x in ts_info][::-1]
+            price_list = [x[1] for x in ts_info][::-1]
+        else:
+            ts_info = 'NO SOURCE FOUND'
+            date_list = ['2023-01-01']
+            price_list = [0]
+
+
+        time_series_info = [
+            {
+                'source' : source_info,
+                'price' : price_list,
+                'date' : date_list
+            }
+        ]
+
+        print(time_series_info)
 
         ### I am going to remove the loading of features to save space. 
         ### I will no longer need to feed that into KerasModel
         # session['fg__features'] = fg.features
         # session['fg__targets'] = fg.targets
-        return render_template('attributes.html', UserHomeForm = user_form, ButtonForm = ButtonFormNoReset())
+        return render_template('attributes.html', 
+                               UserHomeForm = user_form, 
+                               ButtonForm = ButtonFormNoReset(),
+                               TS_info = time_series_info)
     elif request.method == 'POST':
         # Here we need to read in the users values and update them. We should assume we need to update them all.
         if request.form.get('submit') == 'Submit':
@@ -290,9 +314,13 @@ def toggle_model():
 
     pass
 
-@app.route('/about/', methods=['GET', 'POST'])
+@app.route('/about/', methods=['GET'])
 def about_form():
     return render_template('about.html')
+
+@app.route('/enhancements/', methods=['GET'])
+def future_enhancements():
+    return render_template('future_enhancements.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

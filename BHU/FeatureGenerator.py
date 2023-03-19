@@ -206,6 +206,8 @@ class FeatureGenerator():
             return False
         if int(h.lot_sqft or 0) > 15_000:
             return False
+        if int(h.sqft) == 0:
+            return False
         return True
 
     def _generate_winsorized_coordinates(self) -> None:

@@ -127,7 +127,9 @@ class House():
         if property_details is None:
             raise Exception('User home data is empty.')
         
-        user_home_id = property_details.get('forwarded_mpr_ids')
+        user_home_id = property_details.get('mpr_id')
+        if user_home_id is None:
+            user_home_id = property_details.get('forwarded_mpr_ids')
         if isinstance(user_home_id, list):
             user_home_id = user_home_id[0]
 
