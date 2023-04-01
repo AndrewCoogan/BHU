@@ -5,3 +5,5 @@ Bang for Buck Housing Upgrade (BHU) is an app that empowers users to make inform
 Currently covered cities:
   - Seattle, WA
   - Chicago, IL
+
+Hosted on Render @ https://bhu-yd98.onrender.com
