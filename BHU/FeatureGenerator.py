@@ -42,6 +42,7 @@ class FeatureGenerator():
         # I need to keep in mind here that this is a list of houses
         self.houses = list(map(self._generate_distance_between_coordinates, self.houses))
         self.houses = list(filter(self._remove_bad_listings, self.houses))
+        self._generate_winzorized_sqft()
         self._generate_winsorized_coordinates()
 
         # Walk Score
@@ -209,6 +210,31 @@ class FeatureGenerator():
         if int(h.sqft) == 0:
             return False
         return True
+    
+    def _generate_winzorized_sqft(self) -> None:
+        '''
+        This is going to take some of the lifting off of the pipelines, and get good data here.
+        Step 1: Winsorise
+        Step 2: Impute
+        '''
+        sqft_list = [h.sqft for h in self.houses]
+        lot_sqft_list = [h.lot_sqft for h in self.houses]
+
+        sqft_list = np.array(sqft_list, dtype=np.float32)
+        lot_sqft_list = np.array(lot_sqft_list, dtype=np.float32)
+
+        sqft_list_winsorized = winsorize(sqft_list, (0.025, 0.025), nan_policy='omit')
+        lot_sqft_winsorized = winsorize(lot_sqft_list, (0.025, 0.025), nan_policy='omit')
+
+        si = SimpleImputer(strategy="mean")
+        sqft_list_winsorized = si.fit_transform(np.array(sqft_list_winsorized).reshape(-1,1))
+        lot_sqft_winsorized = si.fit_transform(np.array(lot_sqft_winsorized).reshape(-1,1))
+        
+        for h, sqft, lot_sqft in zip(self.houses, sqft_list_winsorized, lot_sqft_winsorized):
+            h.sqft_winz = sqft
+            h.lot_sqft_winz = lot_sqft
+
+        return
 
     def _generate_winsorized_coordinates(self) -> None:
         '''
@@ -248,9 +274,12 @@ class FeatureGenerator():
             'baths_half' : int(h.baths_half),
             'baths_1qtr' : int(h.baths_1qtr),
             'bathrooms' : int(h.bathrooms),
+            'n_bathrooms' : int(h.n_bathrooms),
             'year_built' : int(h.year_built),
             'lot_sqft' : int(h.lot_sqft),
+            'lot_sqft_winz' : int(h.lot_sqft_winz),
             'sqft' : int(h.sqft),
+            'sqft_winz' : int(h.sqft_winz),
             'garage' : int(h.garage),
             'stories' : int(h.stories),
             'beds' : int(h.beds),

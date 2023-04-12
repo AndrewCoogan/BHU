@@ -73,6 +73,7 @@ class House():
     
     def update_bathrooms(self):
         self.bathrooms = self.baths_full + 0.75*self.baths_3qtr + 0.5*self.baths_half + 0.25*self.baths_1qtr
+        self.n_bathrooms = self.baths_full + self.baths_3qtr + self.baths_half + self.baths_1qtr
         
     def _query_price_API(self, id : Tuple[int, str]) -> dict:
         property_value = get_PropertyValue(property_id = id)
@@ -169,7 +170,9 @@ class House():
         self.baths_1qtr = int(prop_common.get('bath_1qtr', 0) or 0)
         self.year_built = int(prop_common.get('year_built') or 1950)
         self.lot_sqft = int(prop_common.get('lot_sqft') or 0)
+        self.lot_sqft_winz = int(prop_common.get('lot_sqft') or 0)
         self.sqft = int(prop_common.get('sqft') or 0)
+        self.sqft_winz = int(prop_common.get('sqft') or 0)
         self.garage = num_garage or 0
         self.stories = public_records.get('stories', 1) or 1
         self.beds = public_records.get('beds') or 1
@@ -181,8 +184,6 @@ class House():
         self.lat_long_winz = self.lat_long
         self.address = address.get('line')
         self.price = most_recent_price
-
-        self.update_bathrooms()
 
         if 'city' not in neighborhoods.keys():
             raise Exception('User home is missing a City, and maybe a state.')
@@ -197,7 +198,7 @@ class House():
         self.walk_score = walk_scores.get('walk_score', np.nan)
 
         total_baths = self.baths_full + \
-            0.75*self.baths_3qtr + \
+            0.75 * self.baths_3qtr + \
             0.5 * self.baths_half + \
             0.25 * self.baths_1qtr
 
